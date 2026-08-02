@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pearl Cannon Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg: #121212;
+    --panel: #1f1f1f;
+    --panel-2: #171717;
+    --line: #333333;
+    --ink: #ffffff;
+    --ink-dim: #aaaaaa;
+    --ink-faint: #979797;
+    --blue: #3b82f6;
+    --blue-bright: #60a5fa;
+    --amber: #f59e0b;
+    --red: #ef4444;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; padding: 0 20px 60px; }
+
+  .header-container{
+    background: var(--panel);
+    padding: 28px 20px;
+    margin-bottom: 28px;
+  }
+  .header-inner{ max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  h1{ font-size: 28px; font-weight: 800; margin: 0 0 4px; }
+  .subtitle{ color: var(--ink-dim); font-size: 14px; margin: 0; }
+  .sub-desc{ color: var(--ink-faint); font-size: 13px; margin: 10px 0 0; max-width: 560px; line-height: 1.5; }
+
+  .grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px){ .grid2{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--panel);
+    border-radius: 0.75rem;
+    padding: 18px 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: box-shadow 0.2s;
+  }
+  .card:hover{ box-shadow: 0 6px 14px rgba(0,0,0,0.3); }
+
+  .panel-label{
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--blue-bright);
+    margin: 0 0 14px;
+  }
+
+  .coord-row{ display:flex; gap: 10px; }
+  .field{ flex:1; }
+  label{ display:block; font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; }
+  input{
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 15px;
+    padding: 10px 12px;
+    border-radius: 0.5rem;
+    outline: none;
+  }
+  input:focus{ border-color: var(--blue); }
+
+  button.solve{
+    margin-top: 18px;
+    width: 100%;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    padding: 13px;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button.solve:hover{ background: var(--blue-bright); }
+
+  .results{ margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
+  .hidden{ display:none; }
+
+  svg{ display:block; width: 100%; height: auto; }
+
+  .load-times{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 2px; }
+  .load-card{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--blue);
+    border-radius: 0.5rem;
+    padding: 14px 16px;
+  }
+  .load-card .axis{ font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .load-card .time{ font-size: 28px; font-weight: 800; margin-top: 4px; }
+  .load-card .time span{ font-size: 14px; color: var(--ink-faint); font-weight: 400; }
+  .load-card .stacks{ color: var(--ink-faint); font-size: 13px; margin-top: 2px; }
+
+  .landing{ margin-top: 16px; font-size: 14px; color: var(--ink-dim); }
+  .landing b{ color: var(--ink); }
+
+  .warning{
+    background: rgba(245,158,11,0.08);
+    border: 1px solid var(--amber);
+    border-radius: 0.5rem;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .warning.rust{ background: rgba(239,68,68,0.08); border-color: var(--red); }
+  .warning .wtitle{
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    font-size: 11px;
+    margin-bottom: 6px;
+    display:block;
+  }
+  .warning.rust .wtitle{ color: var(--red); }
+  .warning:not(.rust) .wtitle{ color: var(--amber); }
+
+  footer{
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <div class="header-inner">
+    <h1>Pearl Cannon Calculator</h1>
+    <p class="subtitle">360&deg; Wind Charge Cannon &dash; Charge-Count Solver</p>
+    <p class="sub-desc">Enter the cannon's origin and where you want to land. It solves the wind charge count for each axis and the landing spot.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="grid2">
+    <div class="card">
+      <p class="panel-label">Cannon origin</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="originX", value="0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="originZ" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="panel-label">Target coordinate</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="targetX" placeholder="e.g. 10000">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="targetZ" placeholder="e.g. -5000">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="solve" onclick="solve()">Solve trajectory</button>
+
+  <div id="results" class="results hidden">
+
+    <div class="card">
+      <p class="panel-label">Vector plot</p>
+      <svg id="svgPlot" viewBox="0 0 600 400"></svg>
+    </div>
+
+    <div class="card">
+      <p class="panel-label">Wind charge counts</p>
+      <div class="load-times" id="loadTimes"></div>
+      <div class="landing" id="landingEstimate"></div>
+    </div>
+
+    <div id="warnings" class="results" style="margin-top:0;"></div>
+
+  </div>
+
+  <footer id="footerNote"></footer>
+</div>
+
+<script>
+const TABLE = [
+  {n:4,   d:126.931},
+  {n:5,   d:166.469},
+  {n:6,   d:211.819},
+  {n:7,   d:260.634},
+  {n:8,   d:312.701},
+  {n:10,  d:429.968},
+  {n:12,  d:563.342},
+  {n:16,  d:854.988},
+  {n:20,  d:1186.144},
+  {n:24,  d:1532.551},
+  {n:32,  d:2259.848},
+  {n:48,  d:3734.014},
+  {n:52,  d:4101.095},
+  {n:56,  d:4466.814},
+  {n:64,  d:5190.811},
+  {n:72,  d:5905.998},
+  {n:80,  d:6613.294},
+  {n:96,  d:8010.703},
+  {n:112, d:9390.701},
+  {n:128, d:10759.189},
+  {n:144, d:12119.850},
+  {n:160, d:13475.692},
+  {n:176, d:14828.746},
+  {n:192, d:16179.991},
+  {n:224, d:18879.644},
+  {n:256, d:21577.723},
+  {n:320, d:26972.604},
+  {n:384, d:32367.169},
+  {n:448, d:37761.702},
+  {n:512, d:43156.231}
+];
+
+const DRIFT = 0.037481;
+
+const MAX_TESTED = TABLE[TABLE.length-1].n;
+
+function distanceForCharges(n){
+  if (n <= 0) return 0;
+  if (n <= TABLE[0].n) return TABLE[0].d * (n / TABLE[0].n);
+  for (let i=0; i<TABLE.length-1; i++){
+    if (n >= TABLE[i].n && n <= TABLE[i+1].n){
+      const f = (n - TABLE[i].n) / (TABLE[i+1].n - TABLE[i].n);
+      return TABLE[i].d + f*(TABLE[i+1].d - TABLE[i].d);
+    }
+  }
+  const a = TABLE[TABLE.length-2], b = TABLE[TABLE.length-1];
+  const slope = (b.d - a.d) / (b.n - a.n);
+  return b.d + slope*(n - b.n);
+}
+
+function chargesForDistance(d){
+  if (d <= 0) return 0;
+  if (d <= TABLE[0].d) return TABLE[0].n * (d / TABLE[0].d);
+  for (let i=0; i<TABLE.length-1; i++){
+    if (d >= TABLE[i].d && d <= TABLE[i+1].d){
+      const f = (d - TABLE[i].d) / (TABLE[i+1].d - TABLE[i].d);
+      return TABLE[i].n + f*(TABLE[i+1].n - TABLE[i].n);
+    }
+  }
+  const a = TABLE[TABLE.length-2], b = TABLE[TABLE.length-1];
+  const slope = (b.n - a.n) / (b.d - a.d);
+  return b.n + slope*(d - b.d);
+}
+
+const UNIT = {
+  N: {x: DRIFT, z: -1},
+  E: {x: 1,     z: DRIFT},
+  S: {x: -DRIFT,z: 1},
+  W: {x: -1,    z: -DRIFT}
+};
+
+function solveAxesRaw(dX, dZ, axisA, axisB){
+  const A = UNIT[axisA], B = UNIT[axisB];
+  const det = A.x*B.z - B.x*A.z;
+  const a = (dX*B.z - B.x*dZ) / det;
+  const b = (A.x*dZ - dX*A.z) / det;
+  return {a, b};
+}
+
+function chooseAxes(dX, dZ){
+  const pairs = [['E','N'],['E','S'],['W','N'],['W','S']];
+  let best = null;
+  for (const [axisA, axisB] of pairs){
+    const r = solveAxesRaw(dX, dZ, axisA, axisB);
+    if (r.a >= -1e-6 && r.b >= -1e-6){
+      const total = r.a + r.b;
+      if (!best || total < best.total){
+        best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), total};
+      }
+    }
+  }
+  if (!best){
+    for (const [axisA, axisB] of pairs){
+      const r = solveAxesRaw(dX, dZ, axisA, axisB);
+      const penalty = Math.max(0,-r.a) + Math.max(0,-r.b);
+      if (!best || penalty < best.penalty){
+        best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), penalty};
+      }
+    }
+  }
+  return best;
+}
+
+function formatStacks(n){
+  const charges = Math.round(n);
+  const stacks = Math.floor(charges / 64);
+  const remainder = charges % 64;
+  if (stacks === 0) return `${remainder}`;
+  if (remainder === 0) return `${stacks} x 64`;
+  return `${stacks} x 64 + ${remainder}`;
+}
+
+function solve(){
+  const oX = parseFloat(document.getElementById('originX').value) || 0;
+  const oZ = parseFloat(document.getElementById('originZ').value) || 0;
+  const tX = parseFloat(document.getElementById('targetX').value);
+  const tZ = parseFloat(document.getElementById('targetZ').value);
+
+  if (isNaN(tX) || isNaN(tZ)){
+    alert('Enter a target X and Z.');
+    return;
+  }
+
+  const dX = tX - oX;
+  const dZ = tZ - oZ;
+
+  const chosen = chooseAxes(dX, dZ);
+  const axisA = chosen.axisA, axisB = chosen.axisB;
+  const a = chosen.a, b = chosen.b; 
+  
+  const totalDist = a + b;
+  const nTotalRaw = chargesForDistance(totalDist);
+  const nTotal = Math.round(nTotalRaw);
+  const splitA = totalDist > 0 ? a / totalDist : 0;
+  let nA = Math.round(nTotal * splitA);
+  let nB = nTotal - nA; 
+
+  const warnings = [];
+
+  if (nTotal > MAX_TESTED){
+    warnings.push({
+      type:'amber',
+      title:'Past tested range — extrapolated',
+      body:`This solve needs a combined total of ${nTotal} wind charges, beyond the longest confirmed test (${MAX_TESTED}). The curve is a straight-line extrapolation past that point rather than confirmed data.`
+    });
+  }
+
+  const rate = nTotal > 0 ? distanceForCharges(nTotal) / nTotal : 0;
+  const distA = nA * rate, distB = nB * rate;
+  const uA = UNIT[axisA], uB = UNIT[axisB];
+  const landing = {
+    x: oX + distA*uA.x + distB*uB.x,
+    z: oZ + distA*uA.z + distB*uB.z
+  };
+
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, warnings });
+}
+
+const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
+
+function renderResults(r){
+  document.getElementById('results').classList.remove('hidden');
+
+  const lt = document.getElementById('loadTimes');
+  lt.innerHTML = `
+    <div class="load-card">
+      <div class="axis">${AXIS_NAME[r.axisA]}</div>
+      <div class="time">${r.nA}<span> charges</span></div>
+      <div class="stacks">${formatStacks(r.nA)}</div>
+    </div>
+    <div class="load-card">
+      <div class="axis">${AXIS_NAME[r.axisB]}</div>
+      <div class="time">${r.nB}<span> charges</span></div>
+      <div class="stacks">${formatStacks(r.nB)}</div>
+    </div>
+  `;
+
+  document.getElementById('landingEstimate').innerHTML = `
+    Predicted landing: <b>${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+    <br>
+    Total charges: <b>${r.nTotal}</b>
+  `;
+
+  const wDiv = document.getElementById('warnings');
+  wDiv.innerHTML = '';
+  r.warnings.forEach(w=>{
+    const el = document.createElement('div');
+    el.className = 'warning ' + (w.type === 'rust' ? 'rust' : '');
+    el.innerHTML = `<span class="wtitle">${w.title}</span>${w.body}`;
+    wDiv.appendChild(el);
+  });
+
+  drawPlot(r);
+}
+
+function drawPlot(r){
+  const svg = document.getElementById('svgPlot');
+  const cx = 300, cy = 200;
+  const rate = r.nTotal > 0 ? distanceForCharges(r.nTotal) / r.nTotal : 0;
+  const distA = r.nA * rate, distB = r.nB * rate;
+  const uA = UNIT[r.axisA], uB = UNIT[r.axisB];
+
+  const maxDist = Math.max(distA, distB, 1);
+  const scale = 140 / maxDist;
+
+  const ax = cx + distA*uA.x*scale;
+  const az = cy + distA*uA.z*scale;
+  const bx = ax + distB*uB.x*scale;
+  const bz = az + distB*uB.z*scale;
+
+  const axisColor = '#3b82f6';
+  const axisColor2 = '#60a5fa';
+  const targetColor = '#f59e0b';
+
+  svg.innerHTML = `
+    <!-- compass rings -->
+    <circle cx="${cx}" cy="${cy}" r="150" fill="none" stroke="#333333" stroke-width="1"/>
+    <circle cx="${cx}" cy="${cy}" r="100" fill="none" stroke="#333333" stroke-width="1"/>
+    <circle cx="${cx}" cy="${cy}" r="50"  fill="none" stroke="#333333" stroke-width="1"/>
+    <line x1="${cx}" y1="20" x2="${cx}" y2="380" stroke="#333333" stroke-width="1"/>
+    <line x1="20" y1="${cy}" x2="580" y2="${cy}" stroke="#333333" stroke-width="1"/>
+    <text x="${cx-6}" y="16" fill="#979797" font-family="Inter" font-size="11">N</text>
+    <text x="${cx-6}" y="396" fill="#979797" font-family="Inter" font-size="11">S</text>
+    <text x="586" y="${cy+4}" fill="#979797" font-family="Inter" font-size="11">E</text>
+    <text x="6" y="${cy+4}" fill="#979797" font-family="Inter" font-size="11">W</text>
+
+    <!-- component A -->
+    <line x1="${cx}" y1="${cy}" x2="${ax}" y2="${az}" stroke="${axisColor}" stroke-width="2.5"/>
+    <circle cx="${ax}" cy="${az}" r="3.5" fill="${axisColor}"/>
+
+    <!-- component B -->
+    <line x1="${ax}" y1="${az}" x2="${bx}" y2="${bz}" stroke="${axisColor2}" stroke-width="2.5"/>
+
+    <!-- resultant -->
+    <line x1="${cx}" y1="${cy}" x2="${bx}" y2="${bz}" stroke="${targetColor}" stroke-width="2" stroke-dasharray="5 4"/>
+    <circle cx="${bx}" cy="${bz}" r="5" fill="${targetColor}"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="#ffffff"/>
+
+    <text x="${cx+10}" y="${cy-10}" fill="#979797" font-family="Inter" font-size="11">origin</text>
+    <text x="${bx+8}" y="${bz+4}" fill="${targetColor}" font-family="Inter" font-size="11">target</text>
+  `;
+}
+</script>
+</body>
+</html>
