@@ -189,20 +189,12 @@
   <button class="solve" onclick="solve()">Solve trajectory</button>
 
   <div id="results" class="results hidden">
-
-    <div class="card">
-      <p class="panel-label">Vector plot</p>
-      <svg id="svgPlot" viewBox="0 0 600 400"></svg>
-    </div>
-
     <div class="card">
       <p class="panel-label">Wind charge counts</p>
       <div class="load-times" id="loadTimes"></div>
       <div class="landing" id="landingEstimate"></div>
     </div>
-
     <div id="warnings" class="results" style="margin-top:0;"></div>
-
   </div>
 
   <footer id="footerNote"></footer>
@@ -401,56 +393,6 @@ function renderResults(r){
     el.innerHTML = `<span class="wtitle">${w.title}</span>${w.body}`;
     wDiv.appendChild(el);
   });
-
-  drawPlot(r);
-}
-
-function drawPlot(r){
-  const svg = document.getElementById('svgPlot');
-  const cx = 300, cy = 200;
-  const rate = r.nTotal > 0 ? distanceForCharges(r.nTotal) / r.nTotal : 0;
-  const distA = r.nA * rate, distB = r.nB * rate;
-  const uA = UNIT[r.axisA], uB = UNIT[r.axisB];
-
-  const maxDist = Math.max(distA, distB, 1);
-  const scale = 140 / maxDist;
-
-  const ax = cx + distA*uA.x*scale;
-  const az = cy + distA*uA.z*scale;
-  const bx = ax + distB*uB.x*scale;
-  const bz = az + distB*uB.z*scale;
-
-  const axisColor = '#3b82f6';
-  const axisColor2 = '#60a5fa';
-  const targetColor = '#f59e0b';
-
-  svg.innerHTML = `
-    <!-- compass rings -->
-    <circle cx="${cx}" cy="${cy}" r="150" fill="none" stroke="#333333" stroke-width="1"/>
-    <circle cx="${cx}" cy="${cy}" r="100" fill="none" stroke="#333333" stroke-width="1"/>
-    <circle cx="${cx}" cy="${cy}" r="50"  fill="none" stroke="#333333" stroke-width="1"/>
-    <line x1="${cx}" y1="20" x2="${cx}" y2="380" stroke="#333333" stroke-width="1"/>
-    <line x1="20" y1="${cy}" x2="580" y2="${cy}" stroke="#333333" stroke-width="1"/>
-    <text x="${cx-6}" y="16" fill="#979797" font-family="Inter" font-size="11">N</text>
-    <text x="${cx-6}" y="396" fill="#979797" font-family="Inter" font-size="11">S</text>
-    <text x="586" y="${cy+4}" fill="#979797" font-family="Inter" font-size="11">E</text>
-    <text x="6" y="${cy+4}" fill="#979797" font-family="Inter" font-size="11">W</text>
-
-    <!-- component A -->
-    <line x1="${cx}" y1="${cy}" x2="${ax}" y2="${az}" stroke="${axisColor}" stroke-width="2.5"/>
-    <circle cx="${ax}" cy="${az}" r="3.5" fill="${axisColor}"/>
-
-    <!-- component B -->
-    <line x1="${ax}" y1="${az}" x2="${bx}" y2="${bz}" stroke="${axisColor2}" stroke-width="2.5"/>
-
-    <!-- resultant -->
-    <line x1="${cx}" y1="${cy}" x2="${bx}" y2="${bz}" stroke="${targetColor}" stroke-width="2" stroke-dasharray="5 4"/>
-    <circle cx="${bx}" cy="${bz}" r="5" fill="${targetColor}"/>
-    <circle cx="${cx}" cy="${cy}" r="4" fill="#ffffff"/>
-
-    <text x="${cx+10}" y="${cy-10}" fill="#979797" font-family="Inter" font-size="11">origin</text>
-    <text x="${bx+8}" y="${bz+4}" fill="${targetColor}" font-family="Inter" font-size="11">target</text>
-  `;
 }
 </script>
 </body>
