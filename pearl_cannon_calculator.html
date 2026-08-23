@@ -202,41 +202,39 @@
 
 <script>
 const TABLE = [
-  {n:4,   d:120.496},
-  {n:5,   d:161.292},
-  {n:6,   d:205.851},
-  {n:7,   d:253.946},
-  {n:8,   d:305.359},
-  {n:10,  d:421.584},
-  {n:12,  d:549.624},
-  {n:16,  d:844.965},
-  {n:20,  d:1175.999},
-  {n:24,  d:1522.549},
-  {n:32,  d:2250.967},
-  {n:48,  d:3730.864},
-  {n:52,  d:4098.247},
-  {n:56,  d:4464.254},
-  {n:64,  d:5188.753},
-  {n:72,  d:5902.692},
-  {n:80,  d:6611.983},
-  {n:96,  d:8009.884},
-  {n:112, d:9390.199},
-  {n:128, d:10758.887},
-  {n:144, d:12119.670},
-  {n:160, d:13475.585},
-  {n:176, d:14828.684},
-  {n:192, d:16179.955},
-  {n:224, d:18879.632},
-  {n:256, d:21577.719},
-  {n:320, d:26972.604},
+  {n:4,   d:133.175},
+  {n:5,   d:174.042},
+  {n:6,   d:220.549},
+  {n:7,   d:270.417},
+  {n:8,   d:323.441},
+  {n:10,  d:442.233},
+  {n:12,  d:576.652},
+  {n:16,  d:869.650},
+  {n:20,  d:1196.087},
+  {n:24,  d:1542.310},
+  {n:32,  d:2268.553},
+  {n:48,  d:3740.221},
+  {n:52,  d:4106.706},
+  {n:56,  d:4471.856},
+  {n:64,  d:5192.848},
+  {n:72,  d:5907.627},
+  {n:80,  d:6614.593},
+  {n:96,  d:8012.317},
+  {n:112, d:9391.691},
+  {n:128, d:10759.488},
+  {n:144, d:12120.029},
+  {n:160, d:13475.904},
+  {n:176, d:14828.808},
+  {n:192, d:16180.027},
+  {n:224, d:18879.668},
+  {n:256, d:21577.727},
+  {n:320, d:26972.605},
   {n:384, d:32367.169},
   {n:448, d:37761.702},
   {n:512, d:43156.231}
 ];
 
 const DRIFT = 0.037481;
-
-const MAX_TESTED = TABLE[TABLE.length-1].n;
 
 function distanceForCharges(n){
   if (n <= 0) return 0;
@@ -338,16 +336,6 @@ function solve(){
   const splitA = totalDist > 0 ? a / totalDist : 0;
   let nA = Math.round(nTotal * splitA);
   let nB = nTotal - nA; 
-
-  const warnings = [];
-
-  if (nTotal > MAX_TESTED){
-    warnings.push({
-      type:'amber',
-      title:'Past tested range — extrapolated',
-      body:`This solve needs a combined total of ${nTotal} wind charges, beyond the longest confirmed test (${MAX_TESTED}). The curve is a straight-line extrapolation past that point rather than confirmed data.`
-    });
-  }
 
   const rate = nTotal > 0 ? distanceForCharges(nTotal) / nTotal : 0;
   const distA = nA * rate, distB = nB * rate;
