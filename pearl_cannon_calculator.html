@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Pearl Cannon Calculator</title>
+<link rel="icon" href="https://static.wikia.nocookie.net/minecraft_gamepedia/images/f/f6/Ender_Pearl_JE3_BE2.png/revision/latest/thumbnail/width/360/height/360?cb=20200512195721" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -114,35 +115,46 @@
   .landing{ margin-top: 16px; font-size: 14px; color: var(--ink-dim); }
   .landing b{ color: var(--ink); }
 
-  .warning{
-    background: rgba(245,158,11,0.08);
-    border: 1px solid var(--amber);
-    border-radius: 0.5rem;
-    padding: 12px 14px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink);
-  }
-  .warning.rust{ background: rgba(239,68,68,0.08); border-color: var(--red); }
-  .warning .wtitle{
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    font-size: 11px;
-    margin-bottom: 6px;
-    display:block;
-  }
-  .warning.rust .wtitle{ color: var(--red); }
-  .warning:not(.rust) .wtitle{ color: var(--amber); }
-
-  footer{
-    margin-top: 40px;
-    font-size: 12px;
-    color: var(--ink-faint);
-    line-height: 1.6;
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top: 14px;
+    padding-top: 14px;
     border-top: 1px solid var(--line);
-    padding-top: 16px;
   }
+  .toggle-label{ font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
+  .toggle-label b{ color: var(--ink); font-weight: 600; }
+  .switch{
+    position: relative;
+    width: 42px;
+    height: 24px;
+    flex: none;
+  }
+  .switch input{ opacity: 0; width: 0; height: 0; }
+  .switch .slider{
+    position: absolute;
+    inset: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .switch .slider::before{
+    content:"";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    top: 3px;
+    background: var(--ink-faint);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .switch input:checked + .slider{ background: var(--blue); border-color: var(--blue); }
+  .switch input:checked + .slider::before{ transform: translateX(18px); background: #fff; }
 </style>
 </head>
 <body>
@@ -150,8 +162,8 @@
 <div class="header-container">
   <div class="header-inner">
     <h1>Pearl Cannon Calculator</h1>
-    <p class="subtitle">360&deg; Wind Charge Cannon &dash; Charge-Count Solver</p>
-    <p class="sub-desc">Enter the cannon's origin and where you want to land. It solves the wind charge count for each axis and the landing spot.</p>
+    <p class="subtitle">360&deg; Breeze Wind Charge Cannon &dash; Charge-Count Solver</p>
+    <p class="sub-desc">Enter the cannon's origin and where you want to land. It solves the wind charge count for each axis and the predicted landing spot.</p>
   </div>
 </div>
 
@@ -163,7 +175,7 @@
       <div class="coord-row">
         <div class="field">
           <label>X</label>
-          <input type="number" id="originX", value="0">
+          <input type="number" id="originX" value="0">
         </div>
         <div class="field">
           <label>Z</label>
@@ -183,6 +195,13 @@
           <input type="number" id="targetZ" placeholder="e.g. -5000">
         </div>
       </div>
+      <div class="toggle-row">
+        <div class="toggle-label"><b>Nether Conversion</b><br>Turn this on if the coordinates above is in the overworld and the cannon is in the nether</div>
+        <label class="switch">
+          <input type="checkbox" id="netherConvert">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -194,10 +213,8 @@
       <div class="load-times" id="loadTimes"></div>
       <div class="landing" id="landingEstimate"></div>
     </div>
-    <div id="warnings" class="results" style="margin-top:0;"></div>
   </div>
 
-  <footer id="footerNote"></footer>
 </div>
 
 <script>
@@ -315,12 +332,18 @@ function formatStacks(n){
 function solve(){
   const oX = parseFloat(document.getElementById('originX').value) || 0;
   const oZ = parseFloat(document.getElementById('originZ').value) || 0;
-  const tX = parseFloat(document.getElementById('targetX').value);
-  const tZ = parseFloat(document.getElementById('targetZ').value);
+  let tX = parseFloat(document.getElementById('targetX').value);
+  let tZ = parseFloat(document.getElementById('targetZ').value);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter a target X and Z.');
     return;
+  }
+
+  const convertNether = document.getElementById('netherConvert').checked;
+  if (convertNether){
+    tX = tX / 8;
+    tZ = tZ / 8;
   }
 
   const dX = tX - oX;
@@ -345,7 +368,7 @@ function solve(){
     z: oZ + distA*uA.z + distB*uB.z
   };
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, warnings });
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing });
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
@@ -372,15 +395,6 @@ function renderResults(r){
     <br>
     Total charges: <b>${r.nTotal}</b>
   `;
-
-  const wDiv = document.getElementById('warnings');
-  wDiv.innerHTML = '';
-  r.warnings.forEach(w=>{
-    const el = document.createElement('div');
-    el.className = 'warning ' + (w.type === 'rust' ? 'rust' : '');
-    el.innerHTML = `<span class="wtitle">${w.title}</span>${w.body}`;
-    wDiv.appendChild(el);
-  });
 }
 </script>
 </body>
