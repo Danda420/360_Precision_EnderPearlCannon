@@ -97,8 +97,6 @@
   .results{ margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
   .hidden{ display:none; }
 
-  svg{ display:block; width: 100%; height: auto; }
-
   .load-times{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 2px; }
   .load-card{
     background: var(--panel-2);
@@ -112,8 +110,16 @@
   .load-card .time span{ font-size: 14px; color: var(--ink-faint); font-weight: 400; }
   .load-card .stacks{ color: var(--ink-faint); font-size: 13px; margin-top: 2px; }
 
-  .landing{ margin-top: 16px; font-size: 14px; color: var(--ink-dim); }
-  .landing b{ color: var(--ink); }
+  .landing-details {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+  }
+  .landing-details b { color: var(--ink); }
+  .error-text { margin-top: 4px; font-size: 12.5px; color: var(--ink-faint); }
 
   .toggle-row{
     display:flex;
@@ -341,13 +347,16 @@ function solve(){
   }
 
   const convertNether = document.getElementById('netherConvert').checked;
+  let targetX_nether = tX;
+  let targetZ_nether = tZ;
+
   if (convertNether){
-    tX = tX / 8;
-    tZ = tZ / 8;
+    targetX_nether = Math.floor(tX / 8);
+    targetZ_nether = Math.floor(tZ / 8);
   }
 
-  const dX = tX - oX;
-  const dZ = tZ - oZ;
+  const dX = targetX_nether - oX;
+  const dZ = targetZ_nether - oZ;
 
   const chosen = chooseAxes(dX, dZ);
   const axisA = chosen.axisA, axisB = chosen.axisB;
@@ -355,6 +364,7 @@ function solve(){
   
   const totalDist = a + b;
   const nTotalRaw = chargesForDistance(totalDist);
+  
   const nTotal = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
   let nA = Math.round(nTotal * splitA);
@@ -363,37 +373,61 @@ function solve(){
   const rate = nTotal > 0 ? distanceForCharges(nTotal) / nTotal : 0;
   const distA = nA * rate, distB = nB * rate;
   const uA = UNIT[axisA], uB = UNIT[axisB];
+  
   const landing = {
-    x: oX + distA*uA.x + distB*uB.x,
-    z: oZ + distA*uA.z + distB*uB.z
+    x: oX + distA * uA.x + distB * uB.x,
+    z: oZ + distA * uA.z + distB * uB.z
   };
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing });
+  let err = 0;
+  if (convertNether) {
+    err = Math.sqrt(Math.pow((landing.x * 8) - tX, 2) + Math.pow((landing.z * 8) - tZ, 2));
+  } else {
+    err = Math.sqrt(Math.pow(landing.x - tX, 2) + Math.pow(landing.z - tZ, 2));
+  }
+
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
 
-function renderResults(r){
-  document.getElementById('results').classList.remove('hidden');
+function renderResults(r, convertNether){
+  const resContainer = document.getElementById('results');
+  resContainer.classList.remove('hidden');
 
-  const lt = document.getElementById('loadTimes');
-  lt.innerHTML = `
-    <div class="load-card">
-      <div class="axis">${AXIS_NAME[r.axisA]}</div>
-      <div class="time">${r.nA}<span> charges</span></div>
-      <div class="stacks">${formatStacks(r.nA)}</div>
-    </div>
-    <div class="load-card">
-      <div class="axis">${AXIS_NAME[r.axisB]}</div>
-      <div class="time">${r.nB}<span> charges</span></div>
-      <div class="stacks">${formatStacks(r.nB)}</div>
-    </div>
-  `;
+  let owHTML = '';
+  let conversionHTML = '';
 
-  document.getElementById('landingEstimate').innerHTML = `
-    Predicted landing: <b>${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
-    <br>
-    Total charges: <b>${r.nTotal}</b>
+  if (convertNether) {
+    conversionHTML = `Converted target (Nether): <b style="color: var(--ink);">${r.targetX_nether}, ${r.targetZ_nether}</b><br>`;
+    owHTML = `<br>Overworld Coords: <b style="color: var(--ink);">${(r.landing.x * 8).toFixed(0)}, ${(r.landing.z * 8).toFixed(0)}</b>`;
+  }
+
+  resContainer.innerHTML = `
+    <div class="card">
+      <p class="panel-label">Wind charge counts</p>
+      <div class="load-times">
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.axisA]}</div>
+          <div class="time">${r.nA}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nA)}</div>
+        </div>
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.axisB]}</div>
+          <div class="time">${r.nB}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nB)}</div>
+        </div>
+      </div>
+      <div class="landing-details" style="margin-top: 16px; font-size: 14px; color: var(--ink-dim); line-height: 1.6;">
+        ${conversionHTML}
+        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        ${owHTML}
+        <br>
+        <span class="error-text">Offset from target: <b>~${r.err.toFixed(1)} blocks</b></span>
+        <br>
+        Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+      </div>
+    </div>
   `;
 }
 </script>
