@@ -225,36 +225,35 @@
 
 <script>
 const TABLE = [
-  {n:4,   d:133.175},
-  {n:5,   d:174.042},
-  {n:6,   d:220.549},
-  {n:7,   d:270.417},
-  {n:8,   d:323.441},
-  {n:10,  d:442.233},
-  {n:12,  d:576.652},
-  {n:16,  d:869.650},
-  {n:20,  d:1196.087},
-  {n:24,  d:1542.310},
-  {n:32,  d:2268.553},
-  {n:48,  d:3740.221},
-  {n:52,  d:4106.706},
-  {n:56,  d:4471.856},
-  {n:64,  d:5192.848},
-  {n:72,  d:5907.627},
-  {n:80,  d:6614.593},
-  {n:96,  d:8012.317},
-  {n:112, d:9391.691},
-  {n:128, d:10759.488},
-  {n:144, d:12120.029},
-  {n:160, d:13475.904},
-  {n:176, d:14828.808},
-  {n:192, d:16180.027},
-  {n:224, d:18879.668},
-  {n:256, d:21577.727},
-  {n:320, d:26972.605},
-  {n:384, d:32367.169},
-  {n:448, d:37761.702},
-  {n:512, d:43156.231}
+  {n:5,   d:162.109},
+  {n:6,   d:200.775},
+  {n:7,   d:241.377},
+  {n:8,   d:283.857},
+  {n:10,  d:374.221},
+  {n:12,  d:471.429},
+  {n:16,  d:698.076},
+  {n:20,  d:951.168},
+  {n:24,  d:1226.673},
+  {n:32,  d:1848.884},
+  {n:48,  d:3235.455},
+  {n:52,  d:3599.291},
+  {n:56,  d:3959.153},
+  {n:64,  d:4695.443},
+  {n:72,  d:5437.868},
+  {n:80,  d:6175.961},
+  {n:96,  d:7645.161},
+  {n:112, d:9099.952},
+  {n:128, d:10540.822},
+  {n:144, d:11961.878},
+  {n:160, d:13371.027},
+  {n:176, d:14768.033},
+  {n:192, d:16157.641},
+  {n:224, d:18913.574},
+  {n:256, d:21651.498},
+  {n:320, d:27097.979},
+  {n:384, d:32527.753},
+  {n:448, d:37952.042},
+  {n:512, d:43374.623}
 ];
 
 const DRIFT = 0.037481;
@@ -428,6 +427,13 @@ function renderResults(r, convertNether){
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
       </div>
     </div>
+
+    <footer class=" text-sm p-6 mt-8 footer-container">
+    <div class="flex flex-col space-y-1">
+        <a style="color: var(--ink-dim);">ⓘ Actual landing may offsets by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+        <a style="color: var(--ink-dim);">If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+    </div>
+  </footer>
   `;
 }
 </script>
