@@ -11,3 +11,6 @@ bottom hopper clock: 8 items, top hopper clock: 7 items
 
 ### Calculator
 the same as before, input origin (origin is in the same block coords as the initial ver or you can just look at the placement origin of the schematic) and coords you want to go to, then press solve.
+
+### Breeze Alignment and stuff
+[Video](https://youtu.be/lesnF5K_Cfw)
