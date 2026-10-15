@@ -95,7 +95,7 @@
   button.solve:hover{ background: var(--blue-bright); }
 
   .results{ margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
-  .hidden{ display:none; }
+  .hidden{ display:none !important; }
 
   .load-times{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 2px; }
   .load-card{
@@ -203,33 +203,36 @@
 </div>
 
 <div class="wrap">
-
   <div class="tab-group">
     <div class="tab-btn active" data-tab="main" onclick="selectTab(this)">Main Cannon</div>
     <div class="tab-btn" data-tab="return" onclick="selectTab(this)">Return Cannon</div>
   </div>
-
   <div id="mainTab" class="tab-panel">
-
   <div class="grid2">
     <div class="card">
       <p class="panel-label">Cannon origin</p>
       <div class="coord-row">
         <div class="field">
           <label>X</label>
-          <input type="number" id="originX" value="0">
+          <input type="number" id="originX" placeholder="e.g. 0">
         </div>
         <div class="field">
           <label>Z</label>
-          <input type="number" id="originZ" value="0">
+          <input type="number" id="originZ" placeholder="e.g. 0">
+        </div>
+      </div>
+      <div class="coord-row" id="mainOriginYRow" style="margin-top: 10px;">
+        <div class="field">
+          <label>Floor Y</label>
+          <input type="number" id="originY" placeholder="e.g. 128">
         </div>
       </div>
       <div style="margin-top:14px;">
         <label>Version</label>
         <div class="version-group" id="verGroup">
           <div class="version-btn" data-ver="1" onclick="selectVersion(this)">I</div>
-          <div class="version-btn active" data-ver="2" onclick="selectVersion(this)">II</div>
-          <div class="version-btn" data-ver="3" onclick="selectVersion(this)">III (Testing)</div>
+          <div class="version-btn" data-ver="2" onclick="selectVersion(this)">II</div>
+          <div class="version-btn active" data-ver="3" onclick="selectVersion(this)">III (Test)</div>
         </div>
       </div>
     </div>
@@ -245,6 +248,12 @@
           <input type="number" id="targetZ" placeholder="e.g. -5000">
         </div>
       </div>
+      <div class="coord-row" id="mainTargetYRow" style="margin-top: 10px;">
+        <div class="field">
+          <label>Target Y</label>
+          <input type="number" id="targetY" placeholder="e.g. 127 (Optional)">
+        </div>
+      </div>
       <div class="toggle-row">
         <div class="toggle-label"><b>Nether Conversion</b><br>Turn this on if the coordinates above is in the overworld and the cannon is in the nether</div>
         <label class="switch">
@@ -254,29 +263,29 @@
       </div>
     </div>
   </div>
-
   <button class="solve" onclick="solve()">Solve</button>
-
   <div id="results" class="results hidden"></div>
-
   </div>
-
   <div id="returnTab" class="tab-panel hidden">
-
   <div class="grid2">
     <div class="card">
       <p class="panel-label">Return cannon location</p>
       <div class="coord-row">
         <div class="field">
           <label>X</label>
-          <input type="number" id="returnOriginX" value="0">
+          <input type="number" id="returnOriginX" placeholder="e.g. 0">
         </div>
         <div class="field">
           <label>Z</label>
-          <input type="number" id="returnOriginZ" value="0">
+          <input type="number" id="returnOriginZ" placeholder="e.g. 0">
         </div>
       </div>
-      <p class="sub-desc" style="margin-top:12px;">Where this return cannon sits - usually wherever the main cannon's shot landed you.</p>
+      <div class="coord-row" style="margin-top: 10px;">
+        <div class="field">
+          <label>Floor Y</label>
+          <input type="number" id="returnOriginY" placeholder="e.g. 128">
+        </div>
+      </div>
     </div>
     <div class="card">
       <p class="panel-label">Main cannon coordinate</p>
@@ -290,20 +299,111 @@
           <input type="number" id="returnTargetZ" placeholder="e.g. 0">
         </div>
       </div>
-      <p class="sub-desc" style="margin-top:12px;">Where you want this return cannon to send you back to - usually the main cannon's own origin.</p>
+      <div class="coord-row" style="margin-top: 10px;">
+        <div class="field">
+          <label>Target Y</label>
+          <input type="number" id="returnTargetY" placeholder="e.g. 127 (Optional)">
+        </div>
+      </div>
     </div>
   </div>
-
   <button class="solve" onclick="solveReturn()">Solve</button>
-
   <div id="returnResults" class="results hidden"></div>
-
   </div>
-
 </div>
-
 <script>
-// V1
+
+const V3_BASE_Y_VEL = 0.08707139660848056;
+const V3_Y_VEL_PER_CHARGE = 0.01593734962936198;
+const GRAVITY = 0.03;
+const DRAG = 0.99;
+
+const DETONATION_Y_OFFSET = 40.05317302547412;
+
+const v3_mag = 0.8478107958208771;
+const v3_drf = 0.031777016335115336;
+
+const V3_UNIT = {
+  N: {x:  v3_drf, z: -v3_mag},
+  E: {x:  v3_mag, z:  v3_drf},
+  S: {x: -v3_drf, z:  v3_mag},
+  W: {x: -v3_mag, z: -v3_drf}
+};
+
+function getV3Capacity(charges, launchY, targetY) {
+    if (charges <= 0) return 0;
+    let vy = V3_BASE_Y_VEL + (charges * V3_Y_VEL_PER_CHARGE);
+    let y = launchY;
+    let ticks = 0;
+    let fraction = 0; 
+    
+    while (true) {
+        let nextY = y + vy;
+        if (vy < 0 && y >= targetY && nextY <= targetY) {
+            fraction = (targetY - y) / vy;
+            break;
+        }
+		
+        y = nextY;
+        vy = (vy * DRAG) - GRAVITY;
+        ticks++;
+        if (y < targetY - 10 || ticks > 5000) break;
+    }
+    
+    let m = 0;
+    let currentDrag = 1.0;
+    for (let i = 0; i < ticks; i++) {
+        m += currentDrag;
+        currentDrag *= DRAG;
+    }
+    
+    m += currentDrag * fraction;
+    
+    return charges * m; 
+}
+
+function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
+    if (reqTotal <= 0) return 0;
+    let low = 0;
+    let high = 5000; 
+    let best = 0;
+    
+    for (let i = 0; i < 60; i++) {
+        let mid = (low + high) / 2;
+        let cap = getV3Capacity(mid, launchY, targetY);
+        if (cap < reqTotal) {
+            low = mid;
+        } else {
+            high = mid;
+        }
+        best = mid;
+    }
+    return best;
+}
+
+function getV3FlightTime(charges, launchY, targetY) {
+    if (charges <= 0) return 0;
+    let vy = V3_BASE_Y_VEL + (charges * V3_Y_VEL_PER_CHARGE);
+    let y = launchY;
+    let ticks = 0;
+    let fraction = 0;
+    
+    while (true) {
+        let nextY = y + vy;
+        if (vy < 0 && y >= targetY && nextY <= targetY) {
+            fraction = (targetY - y) / vy;
+            break;
+        }
+        y = nextY;
+        vy = (vy * DRAG) - GRAVITY;
+        ticks++;
+        if (y < targetY - 10 || ticks > 5000) break;
+    }
+    
+    return ticks + fraction;
+}
+
+// --- LEGACY V1 / V2 TABLE ---
 const TABLE_V1 = [
   {n:4,   d:120.496},{n:5,   d:161.292},{n:6,   d:205.851},{n:7,   d:253.946},
   {n:8,   d:305.359},{n:10,  d:421.584},{n:12,  d:549.624},{n:16,  d:844.965},
@@ -315,7 +415,6 @@ const TABLE_V1 = [
   {n:448, d:37761.702},{n:512, d:43156.231}
 ];
 
-// V2
 const TABLE_V2 = [
   {n:5,   d:162.109},{n:6,   d:200.775},{n:7,   d:241.377},{n:8,   d:283.857},
   {n:10,  d:374.221},{n:12,  d:471.429},{n:16,  d:698.076},{n:20,  d:951.168},
@@ -331,26 +430,15 @@ const TABLE_V2 = [
   {n:1536, d:130124.754},{n:1600, d:135546.619},{n:1664, d:140968.484},{n:1728, d:146390.349}
 ];
 
-// V3
-const TABLE_V3 = [
-  {n:1,   d:38.392},{n:2,   d:77.712},{n:3,   d:116.569},{n:4,   d:157.262},
-  {n:5,   d:198.851},{n:6,   d:238.622},{n:7,   d:281.543},{n:8,   d:321.763},
-  {n:10,  d:406.660},{n:12,  d:498.527},{n:16,  d:678.469},{n:20,  d:873.260},
-  {n:24,  d:1067.550},{n:32,  d:1486.603},{n:48,  d:2422.439},{n:52,  d:2659.816},
-  {n:56,  d:2920.354},{n:64,  d:3459.763},{n:72,  d:4000.644},{n:80,  d:4581.940},
-  {n:96,  d:5774.705},{n:112, d:7025.847},{n:128, d:8324.942},{n:144, d:9663.105},
-  {n:160, d:11032.788},{n:176, d:12402.402},{n:192, d:13817.513},{n:224, d:16666.617},
-  {n:256, d:19531.276},{n:320, d:25313.126},{n:384, d:31082.731},{n:448, d:36808.802},
-  {n:512, d:42483.574},{n:576, d:48109.729},{n:640, d:53699.547},{n:704, d:59252.306},
-  {n:768, d:64779.164},{n:832, d:70284.334},{n:896, d:75771.809},{n:960, d:81245.121},
-  {n:1024, d:86707.264},{n:1088, d:92159.880},{n:1152, d:97606.804},{n:1216, d:103048.069},
-  {n:1280, d:108485.956},{n:1344, d:113920.565},{n:1408, d:119353.030},{n:1472, d:124784.010},
-  {n:1536, d:130213.587},{n:1600, d:135642.251},{n:1664, d:141070.287},{n:1728, d:146497.739}
-];
-
 const DRIFT = 0.037481;
 
-// V3-only load time.
+const UNIT = {
+  N: {x: DRIFT, z: -1},
+  E: {x: 1, z: DRIFT},
+  S: {x: -DRIFT,z: 1},
+  W: {x: -1, z: -DRIFT}
+};
+
 const GEN_PRIMING_TICKS = 82;
 const GEN_ALIGN_TICKS = 150;
 const GEN_RATE = 8.5201;
@@ -369,16 +457,23 @@ function formatTicks(t){
 }
 
 const VERSIONS = {
-  1: { label: 'I',   table: TABLE_V1 },
-  2: { label: 'II',  table: TABLE_V2 },
-  3: { label: 'III', table: TABLE_V3 }
+  1: { label: 'I',   table: TABLE_V1, usePhysics: false },
+  2: { label: 'II',  table: TABLE_V2, usePhysics: false },
+  3: { label: 'III', usePhysics: true } 
 };
-let selectedVersion = 2;
+let selectedVersion = 3; 
 
 function selectVersion(el) {
   document.querySelectorAll('#verGroup .version-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   selectedVersion = parseInt(el.dataset.ver, 10);
+  
+  const yRows = [document.getElementById('mainOriginYRow'), document.getElementById('mainTargetYRow')];
+  if (selectedVersion === 3) {
+      yRows.forEach(row => row.classList.remove('hidden'));
+  } else {
+      yRows.forEach(row => row.classList.add('hidden'));
+  }
 }
 
 function selectTab(el) {
@@ -417,26 +512,20 @@ function chargesForDistance(table, d){
   return b.n + slope*(d - b.d);
 }
 
-const UNIT = {
-  N: {x: DRIFT, z: -1},
-  E: {x: 1,     z: DRIFT},
-  S: {x: -DRIFT,z: 1},
-  W: {x: -1,    z: -DRIFT}
-};
-
-function solveAxesRaw(dX, dZ, axisA, axisB){
-  const A = UNIT[axisA], B = UNIT[axisB];
+function solveAxesRaw(dX, dZ, axisA, axisB, usePhysics){
+  const A = usePhysics ? V3_UNIT[axisA] : UNIT[axisA];
+  const B = usePhysics ? V3_UNIT[axisB] : UNIT[axisB];
   const det = A.x*B.z - B.x*A.z;
   const a = (dX*B.z - B.x*dZ) / det;
   const b = (A.x*dZ - dX*A.z) / det;
   return {a, b};
 }
 
-function chooseAxes(dX, dZ){
+function chooseAxes(dX, dZ, usePhysics){
   const pairs = [['E','N'],['E','S'],['W','N'],['W','S']];
   let best = null;
   for (const [axisA, axisB] of pairs){
-    const r = solveAxesRaw(dX, dZ, axisA, axisB);
+    const r = solveAxesRaw(dX, dZ, axisA, axisB, usePhysics);
     if (r.a >= -1e-6 && r.b >= -1e-6){
       const total = r.a + r.b;
       if (!best || total < best.total){
@@ -446,7 +535,7 @@ function chooseAxes(dX, dZ){
   }
   if (!best){
     for (const [axisA, axisB] of pairs){
-      const r = solveAxesRaw(dX, dZ, axisA, axisB);
+      const r = solveAxesRaw(dX, dZ, axisA, axisB, usePhysics);
       const penalty = Math.max(0,-r.a) + Math.max(0,-r.b);
       if (!best || penalty < best.penalty){
         best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), penalty};
@@ -468,8 +557,15 @@ function formatStacks(n){
 function solve(){
   const oX = parseFloat(document.getElementById('originX').value) || 0;
   const oZ = parseFloat(document.getElementById('originZ').value) || 0;
+  
+  const oY_val = document.getElementById('originY').value;
+  const oY = oY_val === "" ? 0 : parseFloat(oY_val);
+  
   let tX = parseFloat(document.getElementById('targetX').value);
   let tZ = parseFloat(document.getElementById('targetZ').value);
+  
+  const tY_val = document.getElementById('targetY').value;
+  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter a target X and Z.');
@@ -477,9 +573,10 @@ function solve(){
   }
 
   const ver = VERSIONS[selectedVersion];
-  const table = ver.table;
-
   const convertNether = document.getElementById('netherConvert').checked;
+  
+  const launchY = oY + DETONATION_Y_OFFSET;
+
   let targetX_nether = tX;
   let targetZ_nether = tZ;
 
@@ -491,26 +588,42 @@ function solve(){
   const dX = targetX_nether - oX;
   const dZ = targetZ_nether - oZ;
 
-  const chosen = chooseAxes(dX, dZ);
+  const chosen = chooseAxes(dX, dZ, ver.usePhysics);
   const axisA = chosen.axisA, axisB = chosen.axisB;
+  
   const a = chosen.a, b = chosen.b;
+  const totalDist = a + b; 
 
-  const totalDist = a + b;
-  const nTotalRaw = chargesForDistance(table, totalDist);
+  let nTotalRaw;
+  if (ver.usePhysics) {
+      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
+  } else {
+      nTotalRaw = chargesForDistance(ver.table, totalDist);
+  }
 
   const nTotal = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
   let nA = Math.round(nTotal * splitA);
   let nB = nTotal - nA;
 
-  const rate = nTotal > 0 ? distanceForCharges(table, nTotal) / nTotal : 0;
-  const distA = nA * rate, distB = nB * rate;
-  const uA = UNIT[axisA], uB = UNIT[axisB];
-
-  const landing = {
-    x: oX + distA * uA.x + distB * uB.x,
-    z: oZ + distA * uA.z + distB * uB.z
-  };
+  let landing = {x: 0, z: 0};
+  let flightTicks = 0;
+  
+  if (ver.usePhysics) {
+      const uA = V3_UNIT[axisA];
+      const uB = V3_UNIT[axisB];
+      let mN = nTotal > 0 ? getV3Capacity(nTotal, launchY, tY) / nTotal : 0;
+      landing.x = oX + (nA * uA.x + nB * uB.x) * mN;
+      landing.z = oZ + (nA * uA.z + nB * uB.z) * mN;
+      flightTicks = getV3FlightTime(nTotal, launchY, tY);
+  } else {
+      const uA = UNIT[axisA];
+      const uB = UNIT[axisB];
+      let rate = nTotal > 0 ? distanceForCharges(ver.table, nTotal) / nTotal : 0;
+      let distA = nA * rate, distB = nB * rate;
+      landing.x = oX + distA * uA.x + distB * uB.x;
+      landing.z = oZ + distA * uA.z + distB * uB.z;
+  }
 
   let err = 0;
   if (convertNether) {
@@ -523,7 +636,7 @@ function solve(){
   const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
   const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB }, convertNether);
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
@@ -565,6 +678,7 @@ function renderResults(r, convertNether){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
 
@@ -579,12 +693,11 @@ function renderResults(r, convertNether){
   `;
 }
 
-// Return cannon
 const RETURN_CONFIGS = {
-  NW: { facing: 'NW', axisA: 'N', axisB: 'W', unitA: {x: DRIFT,  z: -1}, unitB: {x: -1, z: DRIFT} },
-  NE: { facing: 'NE', axisA: 'N', axisB: 'E', unitA: {x: -DRIFT, z: -1}, unitB: {x: 1,  z: DRIFT} },
-  SE: { facing: 'SE', axisA: 'S', axisB: 'E', unitA: {x: -DRIFT, z: 1},  unitB: {x: 1,  z: -DRIFT} },
-  SW: { facing: 'SW', axisA: 'S', axisB: 'W', unitA: {x: DRIFT,  z: 1},  unitB: {x: -1, z: -DRIFT} }
+  NW: { facing: 'NW', axisA: 'N', axisB: 'W', unitA: {x:  v3_drf, z: -v3_mag}, unitB: {x: -v3_mag, z:  v3_drf} },
+  NE: { facing: 'NE', axisA: 'N', axisB: 'E', unitA: {x: -v3_drf, z: -v3_mag}, unitB: {x:  v3_mag, z:  v3_drf} },
+  SE: { facing: 'SE', axisA: 'S', axisB: 'E', unitA: {x: -v3_drf, z:  v3_mag}, unitB: {x:  v3_mag, z: -v3_drf} },
+  SW: { facing: 'SW', axisA: 'S', axisB: 'W', unitA: {x:  v3_drf, z:  v3_mag}, unitB: {x: -v3_mag, z: -v3_drf} }
 };
 
 function chooseReturnConfig(dX, dZ){
@@ -597,39 +710,50 @@ function chooseReturnConfig(dX, dZ){
 function solveReturn(){
   const oX = parseFloat(document.getElementById('returnOriginX').value) || 0;
   const oZ = parseFloat(document.getElementById('returnOriginZ').value) || 0;
+  
+  const oY_val = document.getElementById('returnOriginY').value;
+  const oY = oY_val === "" ? 0 : parseFloat(oY_val);
+  
   const tX = parseFloat(document.getElementById('returnTargetX').value);
   const tZ = parseFloat(document.getElementById('returnTargetZ').value);
+  
+  const tY_val = document.getElementById('returnTargetY').value;
+  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter the main cannon\'s X and Z.');
     return;
   }
+  
+  const launchY = oY + DETONATION_Y_OFFSET;
 
   const dX = tX - oX, dZ = tZ - oZ;
   const cfg = chooseReturnConfig(dX, dZ);
-  const table = TABLE_V3; // return cannon shares the V3 calibration
 
   const A = cfg.unitA, B = cfg.unitB;
   const det = A.x*B.z - B.x*A.z;
   const a = Math.max(0, (dX*B.z - B.x*dZ) / det);
   const b = Math.max(0, (A.x*dZ - dX*A.z) / det);
+  const totalDist = a + b; 
 
-  const totalDist = a + b;
-  const nTotal = Math.round(chargesForDistance(table, totalDist));
+  const nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
+  
+  const nTotal = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
   const nA = Math.round(nTotal * splitA);
   const nB = nTotal - nA;
 
-  const rate = nTotal > 0 ? distanceForCharges(table, nTotal) / nTotal : 0;
-  const distA = nA * rate, distB = nB * rate;
-
+  const mN = nTotal > 0 ? getV3Capacity(nTotal, launchY, tY) / nTotal : 0;
+  
   const landing = {
-    x: oX + distA*A.x + distB*B.x,
-    z: oZ + distA*A.z + distB*B.z
+    x: oX + (nA*A.x + nB*B.x)*mN,
+    z: oZ + (nA*A.z + nB*B.z)*mN
   };
   const err = Math.hypot(landing.x - tX, landing.z - tZ);
+  
+  const flightTicks = getV3FlightTime(nTotal, launchY, tY);
 
-  renderReturnResults({ cfg, nA, nB, nTotal, landing, err });
+  renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks });
 }
 
 function renderReturnResults(r){
@@ -661,10 +785,16 @@ function renderReturnResults(r){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
   `;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const activeBtn = document.querySelector('#verGroup .version-btn.active');
+    if(activeBtn) selectVersion(activeBtn);
+});
 </script>
 </body>
 </html>
