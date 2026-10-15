@@ -172,6 +172,24 @@
   }
   .version-btn:hover{ border-color: var(--blue); color: var(--ink); }
   .version-btn.active{ background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .tab-group{ display:flex; gap:8px; margin-bottom: 20px; }
+  .tab-btn{
+    flex:1; background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink-dim); font-size: 14px; font-weight: 600;
+    padding: 11px 10px; border-radius: 0.5rem; cursor: pointer;
+    transition: all 0.12s ease; text-align: center; user-select: none;
+  }
+  .tab-btn:hover{ border-color: var(--blue); color: var(--ink); }
+  .tab-btn.active{ background: var(--blue); border-color: var(--blue); color: #fff; }
+  .tab-panel.hidden{ display:none; }
+
+  .facing-banner{
+    background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--blue);
+    border-radius: 0.5rem; padding: 14px 16px; margin-bottom: 20px;
+  }
+  .facing-banner .flabel{ font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .facing-banner .fvalue{ font-size: 24px; font-weight: 800; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -185,6 +203,13 @@
 </div>
 
 <div class="wrap">
+
+  <div class="tab-group">
+    <div class="tab-btn active" data-tab="main" onclick="selectTab(this)">Main Cannon</div>
+    <div class="tab-btn" data-tab="return" onclick="selectTab(this)">Return Cannon</div>
+  </div>
+
+  <div id="mainTab" class="tab-panel">
 
   <div class="grid2">
     <div class="card">
@@ -203,8 +228,8 @@
         <label>Version</label>
         <div class="version-group" id="verGroup">
           <div class="version-btn" data-ver="1" onclick="selectVersion(this)">I</div>
-          <div class="version-btn" data-ver="2" onclick="selectVersion(this)">II</div>
-          <div class="version-btn active" data-ver="3" onclick="selectVersion(this)">III (Testing)</div>
+          <div class="version-btn active" data-ver="2" onclick="selectVersion(this)">II</div>
+          <div class="version-btn" data-ver="3" onclick="selectVersion(this)">III (Testing)</div>
         </div>
       </div>
     </div>
@@ -233,6 +258,47 @@
   <button class="solve" onclick="solve()">Solve</button>
 
   <div id="results" class="results hidden"></div>
+
+  </div>
+
+  <div id="returnTab" class="tab-panel hidden">
+
+  <div class="grid2">
+    <div class="card">
+      <p class="panel-label">Return cannon location</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="returnOriginX" value="0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="returnOriginZ" value="0">
+        </div>
+      </div>
+      <p class="sub-desc" style="margin-top:12px;">Where this return cannon sits - usually wherever the main cannon's shot landed you.</p>
+    </div>
+    <div class="card">
+      <p class="panel-label">Main cannon coordinate</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="returnTargetX" placeholder="e.g. 0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="returnTargetZ" placeholder="e.g. 0">
+        </div>
+      </div>
+      <p class="sub-desc" style="margin-top:12px;">Where you want this return cannon to send you back to - usually the main cannon's own origin.</p>
+    </div>
+  </div>
+
+  <button class="solve" onclick="solveReturn()">Solve</button>
+
+  <div id="returnResults" class="results hidden"></div>
+
+  </div>
 
 </div>
 
@@ -284,6 +350,24 @@ const TABLE_V3 = [
 
 const DRIFT = 0.037481;
 
+// V3-only load time.
+const GEN_PRIMING_TICKS = 82;
+const GEN_ALIGN_TICKS = 150;
+const GEN_RATE = 8.5201;
+const GEN_BASE = 13.06;
+
+function axisLoadTicks(charges){
+  if (charges <= 0) return 0;
+  return GEN_PRIMING_TICKS + GEN_ALIGN_TICKS + (GEN_RATE * charges + GEN_BASE);
+}
+
+function formatTicks(t){
+  const totalSec = t / 20;
+  const m = Math.floor(totalSec / 60);
+  const s = Math.round(totalSec % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 const VERSIONS = {
   1: { label: 'I',   table: TABLE_V1 },
   2: { label: 'II',  table: TABLE_V2 },
@@ -295,6 +379,14 @@ function selectVersion(el) {
   document.querySelectorAll('#verGroup .version-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   selectedVersion = parseInt(el.dataset.ver, 10);
+}
+
+function selectTab(el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const tab = el.dataset.tab;
+  document.getElementById('mainTab').classList.toggle('hidden', tab !== 'main');
+  document.getElementById('returnTab').classList.toggle('hidden', tab !== 'return');
 }
 
 function distanceForCharges(table, n){
@@ -427,7 +519,11 @@ function solve(){
     err = Math.sqrt(Math.pow(landing.x - tX, 2) + Math.pow(landing.z - tZ, 2));
   }
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label }, convertNether);
+  const showLoadTime = selectedVersion === 3;
+  const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
+  const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
+
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
@@ -452,11 +548,13 @@ function renderResults(r, convertNether){
           <div class="axis">${AXIS_NAME[r.axisA]}</div>
           <div class="time">${r.nA}<span> charges</span></div>
           <div class="stacks">${formatStacks(r.nA)}</div>
+          ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksA)} to load</div>` : ''}
         </div>
         <div class="load-card">
           <div class="axis">${AXIS_NAME[r.axisB]}</div>
           <div class="time">${r.nB}<span> charges</span></div>
           <div class="stacks">${formatStacks(r.nB)}</div>
+          ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksB)} to load</div>` : ''}
         </div>
       </div>
       <div class="landing-details" style="margin-top: 16px; font-size: 14px; color: var(--ink-dim); line-height: 1.6;">
@@ -472,10 +570,99 @@ function renderResults(r, convertNether){
 
     <footer class=" text-sm p-6 mt-8 footer-container">
     <div class="flex flex-col space-y-1">
-        <a style="color: var(--ink-dim);">&#9432; Actual landing may offsets by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
-        <a style="color: var(--ink-dim);">If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+        <a style="color: var(--ink-dim);">&#9432; Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+        <a style="color: var(--ink-dim);">(V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+		<a style="color: var(--ink-dim);">(V3) If you built this in the overworld, you need to add a stopper wall around 2-4 blocks "behind" the predicted landing coords at the Y level of the cannon floor + 2 blocks below.</a>
+		<a style="color: var(--ink-dim);">For example: the cannon is at 1000, 1000 and its floor blocks sits at Y 110. You set the cannon to teleport you to 5000, 5000(the calculator predicted it'll land here). You'll need to build a stopper wall at 5004,110,5003(extend it to 5004,110,5001) and 5003,5004(extend it to 5004,5001) and both of those walls should be all filled to Y 108.</a>
     </div>
   </footer>
+  `;
+}
+
+// Return cannon
+const RETURN_CONFIGS = {
+  NW: { facing: 'NW', axisA: 'N', axisB: 'W', unitA: {x: DRIFT,  z: -1}, unitB: {x: -1, z: DRIFT} },
+  NE: { facing: 'NE', axisA: 'N', axisB: 'E', unitA: {x: -DRIFT, z: -1}, unitB: {x: 1,  z: DRIFT} },
+  SE: { facing: 'SE', axisA: 'S', axisB: 'E', unitA: {x: -DRIFT, z: 1},  unitB: {x: 1,  z: -DRIFT} },
+  SW: { facing: 'SW', axisA: 'S', axisB: 'W', unitA: {x: DRIFT,  z: 1},  unitB: {x: -1, z: -DRIFT} }
+};
+
+function chooseReturnConfig(dX, dZ){
+  if (dX >= 0 && dZ < 0) return RETURN_CONFIGS.NE;
+  if (dX >= 0 && dZ >= 0) return RETURN_CONFIGS.SE;
+  if (dX < 0 && dZ >= 0) return RETURN_CONFIGS.SW;
+  return RETURN_CONFIGS.NW;
+}
+
+function solveReturn(){
+  const oX = parseFloat(document.getElementById('returnOriginX').value) || 0;
+  const oZ = parseFloat(document.getElementById('returnOriginZ').value) || 0;
+  const tX = parseFloat(document.getElementById('returnTargetX').value);
+  const tZ = parseFloat(document.getElementById('returnTargetZ').value);
+
+  if (isNaN(tX) || isNaN(tZ)){
+    alert('Enter the main cannon\'s X and Z.');
+    return;
+  }
+
+  const dX = tX - oX, dZ = tZ - oZ;
+  const cfg = chooseReturnConfig(dX, dZ);
+  const table = TABLE_V3; // return cannon shares the V3 calibration
+
+  const A = cfg.unitA, B = cfg.unitB;
+  const det = A.x*B.z - B.x*A.z;
+  const a = Math.max(0, (dX*B.z - B.x*dZ) / det);
+  const b = Math.max(0, (A.x*dZ - dX*A.z) / det);
+
+  const totalDist = a + b;
+  const nTotal = Math.round(chargesForDistance(table, totalDist));
+  const splitA = totalDist > 0 ? a / totalDist : 0;
+  const nA = Math.round(nTotal * splitA);
+  const nB = nTotal - nA;
+
+  const rate = nTotal > 0 ? distanceForCharges(table, nTotal) / nTotal : 0;
+  const distA = nA * rate, distB = nB * rate;
+
+  const landing = {
+    x: oX + distA*A.x + distB*B.x,
+    z: oZ + distA*A.z + distB*B.z
+  };
+  const err = Math.hypot(landing.x - tX, landing.z - tZ);
+
+  renderReturnResults({ cfg, nA, nB, nTotal, landing, err });
+}
+
+function renderReturnResults(r){
+  const resContainer = document.getElementById('returnResults');
+  resContainer.classList.remove('hidden');
+
+  resContainer.innerHTML = `
+    <div class="facing-banner">
+      <div class="flabel">Cannon facing</div>
+      <div class="fvalue">${r.cfg.facing}</div>
+    </div>
+    <div class="card">
+      <p class="panel-label">Wind charge counts</p>
+      <div class="load-times">
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.cfg.axisA]}</div>
+          <div class="time">${r.nA}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nA)}</div>
+        </div>
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.cfg.axisB]}</div>
+          <div class="time">${r.nB}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nB)}</div>
+        </div>
+      </div>
+      <div class="landing-details">
+        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        <br>
+        <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
+        <br>
+        Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+      </div>
+    </div>
   `;
 }
 </script>
