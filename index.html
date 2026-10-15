@@ -221,18 +221,12 @@
           <input type="number" id="originZ" placeholder="e.g. 0">
         </div>
       </div>
-      <div class="coord-row" id="mainOriginYRow" style="margin-top: 10px;">
-        <div class="field">
-          <label>Floor Y</label>
-          <input type="number" id="originY" placeholder="e.g. 128">
-        </div>
-      </div>
       <div style="margin-top:14px;">
         <label>Version</label>
         <div class="version-group" id="verGroup">
           <div class="version-btn" data-ver="1" onclick="selectVersion(this)">I</div>
-          <div class="version-btn" data-ver="2" onclick="selectVersion(this)">II</div>
-          <div class="version-btn active" data-ver="3" onclick="selectVersion(this)">III (Test)</div>
+          <div class="version-btn active" data-ver="2" onclick="selectVersion(this)">II</div>
+          <div class="version-btn" data-ver="3" onclick="selectVersion(this)">III (Test)</div>
         </div>
       </div>
     </div>
@@ -250,8 +244,8 @@
       </div>
       <div class="coord-row" id="mainTargetYRow" style="margin-top: 10px;">
         <div class="field">
-          <label>Target Y</label>
-          <input type="number" id="targetY" placeholder="e.g. 127 (Optional)">
+          <label>Target Y (Ground)</label>
+          <input type="number" id="targetY" placeholder="e.g. -60 (Optional)">
         </div>
       </div>
       <div class="toggle-row">
@@ -280,12 +274,6 @@
           <input type="number" id="returnOriginZ" placeholder="e.g. 0">
         </div>
       </div>
-      <div class="coord-row" style="margin-top: 10px;">
-        <div class="field">
-          <label>Floor Y</label>
-          <input type="number" id="returnOriginY" placeholder="e.g. 128">
-        </div>
-      </div>
     </div>
     <div class="card">
       <p class="panel-label">Main cannon coordinate</p>
@@ -301,8 +289,8 @@
       </div>
       <div class="coord-row" style="margin-top: 10px;">
         <div class="field">
-          <label>Target Y</label>
-          <input type="number" id="returnTargetY" placeholder="e.g. 127 (Optional)">
+          <label>Target Y (Ground)</label>
+          <input type="number" id="returnTargetY" placeholder="e.g. -60 (Optional)">
         </div>
       </div>
     </div>
@@ -343,7 +331,6 @@ function getV3Capacity(charges, launchY, targetY) {
             fraction = (targetY - y) / vy;
             break;
         }
-		
         y = nextY;
         vy = (vy * DRAG) - GRAVITY;
         ticks++;
@@ -461,18 +448,18 @@ const VERSIONS = {
   2: { label: 'II',  table: TABLE_V2, usePhysics: false },
   3: { label: 'III', usePhysics: true } 
 };
-let selectedVersion = 3; 
+let selectedVersion = 2; 
 
 function selectVersion(el) {
   document.querySelectorAll('#verGroup .version-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   selectedVersion = parseInt(el.dataset.ver, 10);
   
-  const yRows = [document.getElementById('mainOriginYRow'), document.getElementById('mainTargetYRow')];
+  const targetYRow = document.getElementById('mainTargetYRow');
   if (selectedVersion === 3) {
-      yRows.forEach(row => row.classList.remove('hidden'));
+      targetYRow.classList.remove('hidden');
   } else {
-      yRows.forEach(row => row.classList.add('hidden'));
+      targetYRow.classList.add('hidden');
   }
 }
 
@@ -558,14 +545,11 @@ function solve(){
   const oX = parseFloat(document.getElementById('originX').value) || 0;
   const oZ = parseFloat(document.getElementById('originZ').value) || 0;
   
-  const oY_val = document.getElementById('originY').value;
-  const oY = oY_val === "" ? 0 : parseFloat(oY_val);
-  
   let tX = parseFloat(document.getElementById('targetX').value);
   let tZ = parseFloat(document.getElementById('targetZ').value);
   
   const tY_val = document.getElementById('targetY').value;
-  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
+  const tY = tY_val === "" ? -1 : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter a target X and Z.');
@@ -575,7 +559,7 @@ function solve(){
   const ver = VERSIONS[selectedVersion];
   const convertNether = document.getElementById('netherConvert').checked;
   
-  const launchY = oY + DETONATION_Y_OFFSET;
+  const launchY = DETONATION_Y_OFFSET;
 
   let targetX_nether = tX;
   let targetZ_nether = tZ;
@@ -678,7 +662,7 @@ function renderResults(r, convertNether){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time (if chunks are already generated): <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
 
@@ -711,21 +695,18 @@ function solveReturn(){
   const oX = parseFloat(document.getElementById('returnOriginX').value) || 0;
   const oZ = parseFloat(document.getElementById('returnOriginZ').value) || 0;
   
-  const oY_val = document.getElementById('returnOriginY').value;
-  const oY = oY_val === "" ? 0 : parseFloat(oY_val);
-  
   const tX = parseFloat(document.getElementById('returnTargetX').value);
   const tZ = parseFloat(document.getElementById('returnTargetZ').value);
   
   const tY_val = document.getElementById('returnTargetY').value;
-  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
+  const tY = tY_val === "" ? -1 : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter the main cannon\'s X and Z.');
     return;
   }
   
-  const launchY = oY + DETONATION_Y_OFFSET;
+  const launchY = DETONATION_Y_OFFSET;
 
   const dX = tX - oX, dZ = tZ - oZ;
   const cfg = chooseReturnConfig(dX, dZ);
