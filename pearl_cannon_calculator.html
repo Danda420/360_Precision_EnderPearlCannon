@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pearl Cannon Calculator</title>
+<link rel="icon" href="https://static.wikia.nocookie.net/minecraft_gamepedia/images/f/f6/Ender_Pearl_JE3_BE2.png/revision/latest/thumbnail/width/360/height/360?cb=20200512195721" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --bg: #121212;
+    --panel: #1f1f1f;
+    --panel-2: #171717;
+    --line: #333333;
+    --ink: #ffffff;
+    --ink-dim: #aaaaaa;
+    --ink-faint: #979797;
+    --blue: #3b82f6;
+    --blue-bright: #60a5fa;
+    --amber: #f59e0b;
+    --red: #ef4444;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  .wrap{ max-width: 880px; margin: 0 auto; padding: 0 20px 60px; }
+
+  .header-container{
+    background: var(--panel);
+    padding: 28px 20px;
+    margin-bottom: 28px;
+  }
+  .header-inner{ max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  h1{ font-size: 28px; font-weight: 800; margin: 0 0 4px; }
+  .subtitle{ color: var(--ink-dim); font-size: 14px; margin: 0; }
+  .sub-desc{ color: var(--ink-faint); font-size: 13px; margin: 10px 0 0; max-width: 560px; line-height: 1.5; }
+
+  .grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px){ .grid2{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--panel);
+    border-radius: 0.75rem;
+    padding: 18px 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: box-shadow 0.2s;
+  }
+  .card:hover{ box-shadow: 0 6px 14px rgba(0,0,0,0.3); }
+
+  .panel-label{
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--blue-bright);
+    margin: 0 0 14px;
+  }
+
+  .coord-row{ display:flex; gap: 10px; }
+  .field{ flex:1; }
+  label{ display:block; font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; }
+  input{
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 15px;
+    padding: 10px 12px;
+    border-radius: 0.5rem;
+    outline: none;
+  }
+  input:focus{ border-color: var(--blue); }
+
+  button.solve{
+    margin-top: 18px;
+    width: 100%;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    padding: 13px;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button.solve:hover{ background: var(--blue-bright); }
+
+  .results{ margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
+  .hidden{ display:none; }
+
+  .load-times{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 2px; }
+  .load-card{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--blue);
+    border-radius: 0.5rem;
+    padding: 14px 16px;
+  }
+  .load-card .axis{ font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .load-card .time{ font-size: 28px; font-weight: 800; margin-top: 4px; }
+  .load-card .time span{ font-size: 14px; color: var(--ink-faint); font-weight: 400; }
+  .load-card .stacks{ color: var(--ink-faint); font-size: 13px; margin-top: 2px; }
+
+  .landing-details {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+  }
+  .landing-details b { color: var(--ink); }
+  .error-text { margin-top: 4px; font-size: 12.5px; color: var(--ink-faint); }
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .toggle-label{ font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
+  .toggle-label b{ color: var(--ink); font-weight: 600; }
+  .switch{
+    position: relative;
+    width: 42px;
+    height: 24px;
+    flex: none;
+  }
+  .switch input{ opacity: 0; width: 0; height: 0; }
+  .switch .slider{
+    position: absolute;
+    inset: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .switch .slider::before{
+    content:"";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    top: 3px;
+    background: var(--ink-faint);
+    border-radius: 50%;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .switch input:checked + .slider{ background: var(--blue); border-color: var(--blue); }
+  .switch input:checked + .slider::before{ transform: translateX(18px); background: #fff; }
+
+  .version-group{ display: flex; gap: 8px; margin-top: 4px; }
+  .version-btn{
+    flex: 1;
+    background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--ink-dim); font-size: 13px; font-weight: 600;
+    padding: 9px 8px; border-radius: 0.5rem; cursor: pointer;
+    transition: all 0.12s ease; text-align: center; user-select: none;
+  }
+  .version-btn:hover{ border-color: var(--blue); color: var(--ink); }
+  .version-btn.active{ background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .tab-group{ display:flex; gap:8px; margin-bottom: 20px; }
+  .tab-btn{
+    flex:1; background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink-dim); font-size: 14px; font-weight: 600;
+    padding: 11px 10px; border-radius: 0.5rem; cursor: pointer;
+    transition: all 0.12s ease; text-align: center; user-select: none;
+  }
+  .tab-btn:hover{ border-color: var(--blue); color: var(--ink); }
+  .tab-btn.active{ background: var(--blue); border-color: var(--blue); color: #fff; }
+  .tab-panel.hidden{ display:none; }
+
+  .facing-banner{
+    background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--blue);
+    border-radius: 0.5rem; padding: 14px 16px; margin-bottom: 20px;
+  }
+  .facing-banner .flabel{ font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .facing-banner .fvalue{ font-size: 24px; font-weight: 800; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <div class="header-inner">
+    <h1>Pearl Cannon Calculator</h1>
+    <p class="subtitle">360&deg; Breeze Wind Charge Cannon &dash; Charge-Count Solver</p>
+    <p class="sub-desc">Enter the cannon's origin and where you want to land. Pick which cannon version this is (each has its own measured charge/distance table), and it'll solve the wind charge count for each axis and the predicted landing spot.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="tab-group">
+    <div class="tab-btn active" data-tab="main" onclick="selectTab(this)">Main Cannon</div>
+    <div class="tab-btn" data-tab="return" onclick="selectTab(this)">Return Cannon</div>
+  </div>
+
+  <div id="mainTab" class="tab-panel">
+
+  <div class="grid2">
+    <div class="card">
+      <p class="panel-label">Cannon origin</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="originX" value="0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="originZ" value="0">
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <label>Version</label>
+        <div class="version-group" id="verGroup">
+          <div class="version-btn" data-ver="1" onclick="selectVersion(this)">I</div>
+          <div class="version-btn active" data-ver="2" onclick="selectVersion(this)">II</div>
+          <div class="version-btn" data-ver="3" onclick="selectVersion(this)">III (Testing)</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="panel-label">Target coordinate</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="targetX" placeholder="e.g. 10000">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="targetZ" placeholder="e.g. -5000">
+        </div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label"><b>Nether Conversion</b><br>Turn this on if the coordinates above is in the overworld and the cannon is in the nether</div>
+        <label class="switch">
+          <input type="checkbox" id="netherConvert">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <button class="solve" onclick="solve()">Solve</button>
+
+  <div id="results" class="results hidden"></div>
+
+  </div>
+
+  <div id="returnTab" class="tab-panel hidden">
+
+  <div class="grid2">
+    <div class="card">
+      <p class="panel-label">Return cannon location</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="returnOriginX" value="0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="returnOriginZ" value="0">
+        </div>
+      </div>
+      <p class="sub-desc" style="margin-top:12px;">Where this return cannon sits - usually wherever the main cannon's shot landed you.</p>
+    </div>
+    <div class="card">
+      <p class="panel-label">Main cannon coordinate</p>
+      <div class="coord-row">
+        <div class="field">
+          <label>X</label>
+          <input type="number" id="returnTargetX" placeholder="e.g. 0">
+        </div>
+        <div class="field">
+          <label>Z</label>
+          <input type="number" id="returnTargetZ" placeholder="e.g. 0">
+        </div>
+      </div>
+      <p class="sub-desc" style="margin-top:12px;">Where you want this return cannon to send you back to - usually the main cannon's own origin.</p>
+    </div>
+  </div>
+
+  <button class="solve" onclick="solveReturn()">Solve</button>
+
+  <div id="returnResults" class="results hidden"></div>
+
+  </div>
+
+</div>
+
+<script>
+// V1
+const TABLE_V1 = [
+  {n:4,   d:120.496},{n:5,   d:161.292},{n:6,   d:205.851},{n:7,   d:253.946},
+  {n:8,   d:305.359},{n:10,  d:421.584},{n:12,  d:549.624},{n:16,  d:844.965},
+  {n:20,  d:1175.999},{n:24,  d:1522.549},{n:32,  d:2250.967},{n:48,  d:3730.864},
+  {n:52,  d:4098.247},{n:56,  d:4464.254},{n:64,  d:5188.753},{n:72,  d:5902.692},
+  {n:80,  d:6611.983},{n:96,  d:8009.884},{n:112, d:9390.199},{n:128, d:10758.887},
+  {n:144, d:12119.670},{n:160, d:13475.585},{n:176, d:14828.684},{n:192, d:16179.955},
+  {n:224, d:18879.632},{n:256, d:21577.719},{n:320, d:26972.604},{n:384, d:32367.169},
+  {n:448, d:37761.702},{n:512, d:43156.231}
+];
+
+// V2
+const TABLE_V2 = [
+  {n:5,   d:162.109},{n:6,   d:200.775},{n:7,   d:241.377},{n:8,   d:283.857},
+  {n:10,  d:374.221},{n:12,  d:471.429},{n:16,  d:698.076},{n:20,  d:951.168},
+  {n:24,  d:1226.673},{n:32,  d:1848.884},{n:48,  d:3235.455},{n:52,  d:3599.291},
+  {n:56,  d:3959.153},{n:64,  d:4695.443},{n:72,  d:5437.868},{n:80,  d:6175.961},
+  {n:96,  d:7645.161},{n:112, d:9099.952},{n:128, d:10540.822},{n:144, d:11961.878},
+  {n:160, d:13371.027},{n:176, d:14768.033},{n:192, d:16157.641},{n:224, d:18913.574},
+  {n:256, d:21651.498},{n:320, d:27097.979},{n:384, d:32527.753},{n:448, d:37952.042},
+  {n:512, d:43374.623},{n:576, d:48796.699},{n:640, d:54218.624},{n:704, d:59640.505},
+  {n:768, d:65062.375},{n:832, d:70484.241},{n:896, d:75906.106},{n:960, d:81327.971},
+  {n:1024, d:86749.836},{n:1088, d:92171.701},{n:1152, d:97593.566},{n:1216, d:103015.430},
+  {n:1280, d:108437.295},{n:1344, d:113859.160},{n:1408, d:119281.025},{n:1472, d:124702.889},
+  {n:1536, d:130124.754},{n:1600, d:135546.619},{n:1664, d:140968.484},{n:1728, d:146390.349}
+];
+
+// V3
+const TABLE_V3 = [
+  {n:1,   d:38.392},{n:2,   d:77.712},{n:3,   d:116.569},{n:4,   d:157.262},
+  {n:5,   d:198.851},{n:6,   d:238.622},{n:7,   d:281.543},{n:8,   d:321.763},
+  {n:10,  d:406.660},{n:12,  d:498.527},{n:16,  d:678.469},{n:20,  d:873.260},
+  {n:24,  d:1067.550},{n:32,  d:1486.603},{n:48,  d:2422.439},{n:52,  d:2659.816},
+  {n:56,  d:2920.354},{n:64,  d:3459.763},{n:72,  d:4000.644},{n:80,  d:4581.940},
+  {n:96,  d:5774.705},{n:112, d:7025.847},{n:128, d:8324.942},{n:144, d:9663.105},
+  {n:160, d:11032.788},{n:176, d:12402.402},{n:192, d:13817.513},{n:224, d:16666.617},
+  {n:256, d:19531.276},{n:320, d:25313.126},{n:384, d:31082.731},{n:448, d:36808.802},
+  {n:512, d:42483.574},{n:576, d:48109.729},{n:640, d:53699.547},{n:704, d:59252.306},
+  {n:768, d:64779.164},{n:832, d:70284.334},{n:896, d:75771.809},{n:960, d:81245.121},
+  {n:1024, d:86707.264},{n:1088, d:92159.880},{n:1152, d:97606.804},{n:1216, d:103048.069},
+  {n:1280, d:108485.956},{n:1344, d:113920.565},{n:1408, d:119353.030},{n:1472, d:124784.010},
+  {n:1536, d:130213.587},{n:1600, d:135642.251},{n:1664, d:141070.287},{n:1728, d:146497.739}
+];
+
+const DRIFT = 0.037481;
+
+// V3-only load time.
+const GEN_PRIMING_TICKS = 82;
+const GEN_ALIGN_TICKS = 150;
+const GEN_RATE = 8.5201;
+const GEN_BASE = 13.06;
+
+function axisLoadTicks(charges){
+  if (charges <= 0) return 0;
+  return GEN_PRIMING_TICKS + GEN_ALIGN_TICKS + (GEN_RATE * charges + GEN_BASE);
+}
+
+function formatTicks(t){
+  const totalSec = t / 20;
+  const m = Math.floor(totalSec / 60);
+  const s = Math.round(totalSec % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+const VERSIONS = {
+  1: { label: 'I',   table: TABLE_V1 },
+  2: { label: 'II',  table: TABLE_V2 },
+  3: { label: 'III', table: TABLE_V3 }
+};
+let selectedVersion = 2;
+
+function selectVersion(el) {
+  document.querySelectorAll('#verGroup .version-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedVersion = parseInt(el.dataset.ver, 10);
+}
+
+function selectTab(el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const tab = el.dataset.tab;
+  document.getElementById('mainTab').classList.toggle('hidden', tab !== 'main');
+  document.getElementById('returnTab').classList.toggle('hidden', tab !== 'return');
+}
+
+function distanceForCharges(table, n){
+  if (n <= 0) return 0;
+  if (n <= table[0].n) return table[0].d * (n / table[0].n);
+  for (let i=0; i<table.length-1; i++){
+    if (n >= table[i].n && n <= table[i+1].n){
+      const f = (n - table[i].n) / (table[i+1].n - table[i].n);
+      return table[i].d + f*(table[i+1].d - table[i].d);
+    }
+  }
+  const a = table[table.length-2], b = table[table.length-1];
+  const slope = (b.d - a.d) / (b.n - a.n);
+  return b.d + slope*(n - b.n);
+}
+
+function chargesForDistance(table, d){
+  if (d <= 0) return 0;
+  if (d <= table[0].d) return table[0].n * (d / table[0].d);
+  for (let i=0; i<table.length-1; i++){
+    if (d >= table[i].d && d <= table[i+1].d){
+      const f = (d - table[i].d) / (table[i+1].d - table[i].d);
+      return table[i].n + f*(table[i+1].n - table[i].n);
+    }
+  }
+  const a = table[table.length-2], b = table[table.length-1];
+  const slope = (b.n - a.n) / (b.d - a.d);
+  return b.n + slope*(d - b.d);
+}
+
+const UNIT = {
+  N: {x: DRIFT, z: -1},
+  E: {x: 1,     z: DRIFT},
+  S: {x: -DRIFT,z: 1},
+  W: {x: -1,    z: -DRIFT}
+};
+
+function solveAxesRaw(dX, dZ, axisA, axisB){
+  const A = UNIT[axisA], B = UNIT[axisB];
+  const det = A.x*B.z - B.x*A.z;
+  const a = (dX*B.z - B.x*dZ) / det;
+  const b = (A.x*dZ - dX*A.z) / det;
+  return {a, b};
+}
+
+function chooseAxes(dX, dZ){
+  const pairs = [['E','N'],['E','S'],['W','N'],['W','S']];
+  let best = null;
+  for (const [axisA, axisB] of pairs){
+    const r = solveAxesRaw(dX, dZ, axisA, axisB);
+    if (r.a >= -1e-6 && r.b >= -1e-6){
+      const total = r.a + r.b;
+      if (!best || total < best.total){
+        best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), total};
+      }
+    }
+  }
+  if (!best){
+    for (const [axisA, axisB] of pairs){
+      const r = solveAxesRaw(dX, dZ, axisA, axisB);
+      const penalty = Math.max(0,-r.a) + Math.max(0,-r.b);
+      if (!best || penalty < best.penalty){
+        best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), penalty};
+      }
+    }
+  }
+  return best;
+}
+
+function formatStacks(n){
+  const charges = Math.round(n);
+  const stacks = Math.floor(charges / 64);
+  const remainder = charges % 64;
+  if (stacks === 0) return `${remainder}`;
+  if (remainder === 0) return `${stacks} x 64`;
+  return `${stacks} x 64 + ${remainder}`;
+}
+
+function solve(){
+  const oX = parseFloat(document.getElementById('originX').value) || 0;
+  const oZ = parseFloat(document.getElementById('originZ').value) || 0;
+  let tX = parseFloat(document.getElementById('targetX').value);
+  let tZ = parseFloat(document.getElementById('targetZ').value);
+
+  if (isNaN(tX) || isNaN(tZ)){
+    alert('Enter a target X and Z.');
+    return;
+  }
+
+  const ver = VERSIONS[selectedVersion];
+  const table = ver.table;
+
+  const convertNether = document.getElementById('netherConvert').checked;
+  let targetX_nether = tX;
+  let targetZ_nether = tZ;
+
+  if (convertNether){
+    targetX_nether = Math.floor(tX / 8);
+    targetZ_nether = Math.floor(tZ / 8);
+  }
+
+  const dX = targetX_nether - oX;
+  const dZ = targetZ_nether - oZ;
+
+  const chosen = chooseAxes(dX, dZ);
+  const axisA = chosen.axisA, axisB = chosen.axisB;
+  const a = chosen.a, b = chosen.b;
+
+  const totalDist = a + b;
+  const nTotalRaw = chargesForDistance(table, totalDist);
+
+  const nTotal = Math.round(nTotalRaw);
+  const splitA = totalDist > 0 ? a / totalDist : 0;
+  let nA = Math.round(nTotal * splitA);
+  let nB = nTotal - nA;
+
+  const rate = nTotal > 0 ? distanceForCharges(table, nTotal) / nTotal : 0;
+  const distA = nA * rate, distB = nB * rate;
+  const uA = UNIT[axisA], uB = UNIT[axisB];
+
+  const landing = {
+    x: oX + distA * uA.x + distB * uB.x,
+    z: oZ + distA * uA.z + distB * uB.z
+  };
+
+  let err = 0;
+  if (convertNether) {
+    err = Math.sqrt(Math.pow((landing.x * 8) - tX, 2) + Math.pow((landing.z * 8) - tZ, 2));
+  } else {
+    err = Math.sqrt(Math.pow(landing.x - tX, 2) + Math.pow(landing.z - tZ, 2));
+  }
+
+  const showLoadTime = selectedVersion === 3;
+  const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
+  const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
+
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB }, convertNether);
+}
+
+const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
+
+function renderResults(r, convertNether){
+  const resContainer = document.getElementById('results');
+  resContainer.classList.remove('hidden');
+
+  let owHTML = '';
+  let conversionHTML = '';
+
+  if (convertNether) {
+    conversionHTML = `Converted target (Nether): <b style="color: var(--ink);">${r.targetX_nether}, ${r.targetZ_nether}</b><br>`;
+    owHTML = `<br>Overworld Coords: <b style="color: var(--ink);">${(r.landing.x * 8).toFixed(0)}, ${(r.landing.z * 8).toFixed(0)}</b>`;
+  }
+
+  resContainer.innerHTML = `
+    <div class="card">
+      <p class="panel-label">Wind charge counts (Version ${r.verLabel})</p>
+      <div class="load-times">
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.axisA]}</div>
+          <div class="time">${r.nA}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nA)}</div>
+          ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksA)} to load</div>` : ''}
+        </div>
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.axisB]}</div>
+          <div class="time">${r.nB}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nB)}</div>
+          ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksB)} to load</div>` : ''}
+        </div>
+      </div>
+      <div class="landing-details" style="margin-top: 16px; font-size: 14px; color: var(--ink-dim); line-height: 1.6;">
+        ${conversionHTML}
+        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        ${owHTML}
+        <br>
+        <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
+        <br>
+        Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+      </div>
+    </div>
+
+    <footer class=" text-sm p-6 mt-8 footer-container">
+    <div class="flex flex-col space-y-1">
+        <a style="color: var(--ink-dim);">&#9432; Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+        <a style="color: var(--ink-dim);">(V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+		<a style="color: var(--ink-dim);">(V3) If you built this in the overworld, you need to add a stopper wall around 2-4 blocks "behind" the predicted landing coords at the Y level of the cannon floor + 2 blocks below.</a>
+		<a style="color: var(--ink-dim);">For example: the cannon is at 1000, 1000 and its floor blocks sits at Y 110. You set the cannon to teleport you to 5000, 5000(the calculator predicted it'll land here). You'll need to build a stopper wall at 5004,110,5003(extend it to 5004,110,5001) and 5003,5004(extend it to 5004,5001) and both of those walls should be all filled to Y 108.</a>
+    </div>
+  </footer>
+  `;
+}
+
+// Return cannon
+const RETURN_CONFIGS = {
+  NW: { facing: 'NW', axisA: 'N', axisB: 'W', unitA: {x: DRIFT,  z: -1}, unitB: {x: -1, z: DRIFT} },
+  NE: { facing: 'NE', axisA: 'N', axisB: 'E', unitA: {x: -DRIFT, z: -1}, unitB: {x: 1,  z: DRIFT} },
+  SE: { facing: 'SE', axisA: 'S', axisB: 'E', unitA: {x: -DRIFT, z: 1},  unitB: {x: 1,  z: -DRIFT} },
+  SW: { facing: 'SW', axisA: 'S', axisB: 'W', unitA: {x: DRIFT,  z: 1},  unitB: {x: -1, z: -DRIFT} }
+};
+
+function chooseReturnConfig(dX, dZ){
+  if (dX >= 0 && dZ < 0) return RETURN_CONFIGS.NE;
+  if (dX >= 0 && dZ >= 0) return RETURN_CONFIGS.SE;
+  if (dX < 0 && dZ >= 0) return RETURN_CONFIGS.SW;
+  return RETURN_CONFIGS.NW;
+}
+
+function solveReturn(){
+  const oX = parseFloat(document.getElementById('returnOriginX').value) || 0;
+  const oZ = parseFloat(document.getElementById('returnOriginZ').value) || 0;
+  const tX = parseFloat(document.getElementById('returnTargetX').value);
+  const tZ = parseFloat(document.getElementById('returnTargetZ').value);
+
+  if (isNaN(tX) || isNaN(tZ)){
+    alert('Enter the main cannon\'s X and Z.');
+    return;
+  }
+
+  const dX = tX - oX, dZ = tZ - oZ;
+  const cfg = chooseReturnConfig(dX, dZ);
+  const table = TABLE_V3; // return cannon shares the V3 calibration
+
+  const A = cfg.unitA, B = cfg.unitB;
+  const det = A.x*B.z - B.x*A.z;
+  const a = Math.max(0, (dX*B.z - B.x*dZ) / det);
+  const b = Math.max(0, (A.x*dZ - dX*A.z) / det);
+
+  const totalDist = a + b;
+  const nTotal = Math.round(chargesForDistance(table, totalDist));
+  const splitA = totalDist > 0 ? a / totalDist : 0;
+  const nA = Math.round(nTotal * splitA);
+  const nB = nTotal - nA;
+
+  const rate = nTotal > 0 ? distanceForCharges(table, nTotal) / nTotal : 0;
+  const distA = nA * rate, distB = nB * rate;
+
+  const landing = {
+    x: oX + distA*A.x + distB*B.x,
+    z: oZ + distA*A.z + distB*B.z
+  };
+  const err = Math.hypot(landing.x - tX, landing.z - tZ);
+
+  renderReturnResults({ cfg, nA, nB, nTotal, landing, err });
+}
+
+function renderReturnResults(r){
+  const resContainer = document.getElementById('returnResults');
+  resContainer.classList.remove('hidden');
+
+  resContainer.innerHTML = `
+    <div class="facing-banner">
+      <div class="flabel">Cannon facing</div>
+      <div class="fvalue">${r.cfg.facing}</div>
+    </div>
+    <div class="card">
+      <p class="panel-label">Wind charge counts</p>
+      <div class="load-times">
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.cfg.axisA]}</div>
+          <div class="time">${r.nA}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nA)}</div>
+        </div>
+        <div class="load-card">
+          <div class="axis">${AXIS_NAME[r.cfg.axisB]}</div>
+          <div class="time">${r.nB}<span> charges</span></div>
+          <div class="stacks">${formatStacks(r.nB)}</div>
+        </div>
+      </div>
+      <div class="landing-details">
+        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        <br>
+        <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
+        <br>
+        Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
+      </div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
