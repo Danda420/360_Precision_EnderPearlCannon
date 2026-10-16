@@ -269,7 +269,7 @@
   <div id="returnTab" class="tab-panel hidden">
   <div class="grid2">
     <div class="card">
-      <p class="panel-label">Return cannon location</p>
+      <p class="panel-label">Return cannon origin</p>
       <div class="coord-row">
         <div class="field">
           <label>X</label>
@@ -687,16 +687,15 @@ function renderResults(r, convertNether){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time (if chunks are already generated): <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time (if chunks are already generated): <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
 
     <footer class=" text-sm p-6 mt-8 footer-container">
     <div class="flex flex-col space-y-1">
         <a style="color: var(--ink-dim);">&#9432; Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
-        <a style="color: var(--ink-dim);">(V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
-		<a style="color: var(--ink-dim);">(V3) If you built this in the overworld, you need to add a stopper wall around 2-4 blocks "behind" the predicted landing coords at the Y level of the cannon floor + 2 blocks below.</a>
-		<a style="color: var(--ink-dim);">For example: the cannon is at 1000, 1000 and its floor blocks sits at Y 110. You set the cannon to teleport you to 5000, 5000(the calculator predicted it'll land here). You'll need to build a stopper wall at 5004,110,5003(extend it to 5004,110,5001) and 5003,5004(extend it to 5004,5001) and both of those walls should be all filled to Y 108.</a>
+        <a style="color: var(--ink-dim);">&#9432; (V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+		<a style="color: var(--ink-dim);">&#9432; (V3) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level of the block you want to land on in the targeted coords.</a>
     </div>
   </footer>
   `;
@@ -794,7 +793,7 @@ function renderReturnResults(r){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
   `;
