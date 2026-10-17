@@ -346,7 +346,7 @@ function getV3Capacity(charges, launchY, targetY) {
         y = nextY;
         vy = (vy * DRAG) - GRAVITY;
         ticks++;
-        if (y < targetY - 10 || ticks > 5000) break;
+        if ((vy < 0 && y < targetY - 10) || ticks > 5000) break;
     }
     
     let m = 0;
@@ -396,7 +396,7 @@ function getV3FlightTime(charges, launchY, targetY) {
         y = nextY;
         vy = (vy * DRAG) - GRAVITY;
         ticks++;
-        if (y < targetY - 10 || ticks > 5000) break;
+        if ((vy < 0 && y < targetY - 10) || ticks > 5000) break;
     }
     
     return ticks + fraction;
@@ -687,7 +687,7 @@ function renderResults(r, convertNether){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time (if chunks are already generated): <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time (if chunks are already generated): <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
 
@@ -793,7 +793,7 @@ function renderReturnResults(r){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks.toFixed(2)} ticks</b> (${(r.flightTicks / 20).toFixed(2)}s)` : ''}
       </div>
     </div>
   `;
