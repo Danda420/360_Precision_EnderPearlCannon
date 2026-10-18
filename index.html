@@ -346,7 +346,7 @@ function getV3Capacity(charges, launchY, targetY) {
         y = nextY;
         vy = (vy * DRAG) - GRAVITY;
         ticks++;
-        if ((vy < 0 && y < targetY - 10) || ticks > 5000) break;
+        if ((vy < 0 && y < targetY - 10) || ticks > 200000) break;
     }
     
     let m = 0;
@@ -363,11 +363,16 @@ function getV3Capacity(charges, launchY, targetY) {
 
 function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
     if (reqTotal <= 0) return 0;
-    let low = 0;
-    let high = 5000; 
+
+    let high = 64;
+    while (getV3Capacity(high, launchY, targetY) < reqTotal) {
+        high *= 2;
+        if (high > 1e9) break;
+    }
+    let low = high / 2;
     let best = 0;
-    
-    for (let i = 0; i < 60; i++) {
+
+    for (let i = 0; i < 80; i++) {
         let mid = (low + high) / 2;
         let cap = getV3Capacity(mid, launchY, targetY);
         if (cap < reqTotal) {
@@ -396,7 +401,7 @@ function getV3FlightTime(charges, launchY, targetY) {
         y = nextY;
         vy = (vy * DRAG) - GRAVITY;
         ticks++;
-        if ((vy < 0 && y < targetY - 10) || ticks > 5000) break;
+        if ((vy < 0 && y < targetY - 10) || ticks > 200000) break;
     }
     
     return ticks + fraction;
