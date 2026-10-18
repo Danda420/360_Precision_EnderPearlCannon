@@ -14,4 +14,4 @@ hopper timer: 8 items
 the same as before, input origin (the placement origin of the schematic) and coords you want to go to, then press solve.
 
 ### Building, Breeze setup (transport, alignment, etc)
-soon
+[Video](https://www.youtube.com/watch?v=DfEEYxQ7aA8)
