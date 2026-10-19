@@ -367,9 +367,9 @@ function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
     let high = 64;
     while (getV3Capacity(high, launchY, targetY) < reqTotal) {
         high *= 2;
-        if (high > 1e9) break;
+        if (high > 1e9) break; 
     }
-    let low = high / 2;
+    let low = 0;
     let best = 0;
 
     for (let i = 0; i < 80; i++) {
