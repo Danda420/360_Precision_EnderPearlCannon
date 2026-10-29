@@ -316,12 +316,12 @@
 const V3_BASE_Y_VEL = 0.08707139660848;
 const V3_Y_VEL_PER_CHARGE = 0.01029677248211;
 const GRAVITY = 0.03;
-const DRAG = 0.99;
+const DRAG = Math.fround(0.99);
 
 const DETONATION_Y_OFFSET = 40.04762749686572;
 
-const v3_mag = 0.84768518007959;
-const v3_drf = 0.03177230809893;
+const v3_mag = 0.8476851800795954;
+const v3_drf = 0.031772308098935005;
 
 const V3_UNIT = {
   N: {x:  v3_drf, z: -v3_mag},
@@ -330,35 +330,54 @@ const V3_UNIT = {
   W: {x: -v3_mag, z: -v3_drf}
 };
 
-function getV3Capacity(charges, launchY, targetY) {
-    if (charges <= 0) return 0;
+function v3Simulate(charges, launchY, planeY) {
     let vy = V3_BASE_Y_VEL + (charges * V3_Y_VEL_PER_CHARGE);
     let y = launchY;
-    let ticks = 0;
-    let fraction = 0; 
-    
-    while (true) {
-        let nextY = y + vy;
-        if (vy < 0 && y >= targetY && nextY <= targetY) {
-            fraction = (targetY - y) / vy;
-            break;
-        }
-        y = nextY;
-        vy = (vy * DRAG) - GRAVITY;
-        ticks++;
-        if ((vy < 0 && y < targetY - 10) || ticks > 200000) break;
-    }
-    
+    let f = 1.0;
     let m = 0;
-    let currentDrag = 1.0;
-    for (let i = 0; i < ticks; i++) {
-        m += currentDrag;
-        currentDrag *= DRAG;
+    let ticks = 0;
+
+    while (true) {
+        const nextY = y + vy;
+        if (vy < 0 && y > planeY && nextY <= planeY) break;
+        m += f;
+        y = nextY;
+        vy = (vy - GRAVITY) * DRAG;
+        f *= DRAG;
+        ticks++;
+        if ((vy < 0 && y < planeY - 10) || ticks > 200000) break;
     }
-    
-    m += currentDrag * fraction;
-    
-    return charges * m; 
+    return { m, ticks };
+}
+
+function getV3Capacity(charges, launchY, planeY) {
+    if (charges <= 0) return 0;
+    return charges * v3Simulate(charges, launchY, planeY).m;
+}
+
+function v3Refine(o) {
+    const R = 12;
+    const cache = new Map();
+    const simFor = (n) => {
+        if (!cache.has(n)) cache.set(n, v3Simulate(n, o.launchY, o.planeY));
+        return cache.get(n);
+    };
+    let best = null;
+    for (let nA = Math.max(0, o.nA0 - R); nA <= o.nA0 + R; nA++) {
+        for (let nB = Math.max(0, o.nB0 - R); nB <= o.nB0 + R; nB++) {
+            const n = nA + nB;
+            if (n <= 0) continue;
+            const sim = simFor(n);
+            const x = o.oX + (nA * o.uA.x + nB * o.uB.x) * sim.m;
+            const z = o.oZ + (nA * o.uA.z + nB * o.uB.z) * sim.m;
+            const err = o.errFn(x, z);
+            if (!best || err < best.err - 1e-9 || (Math.abs(err - best.err) <= 1e-9 && n < best.nA + best.nB)) {
+                best = { nA, nB, x, z, err, ticks: sim.ticks };
+            }
+        }
+    }
+    if (!best) best = { nA: 0, nB: 0, x: o.oX, z: o.oZ, err: o.errFn(o.oX, o.oZ), ticks: 0 };
+    return best;
 }
 
 function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
@@ -385,26 +404,9 @@ function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
     return best;
 }
 
-function getV3FlightTime(charges, launchY, targetY) {
+function getV3FlightTime(charges, launchY, planeY) {
     if (charges <= 0) return 0;
-    let vy = V3_BASE_Y_VEL + (charges * V3_Y_VEL_PER_CHARGE);
-    let y = launchY;
-    let ticks = 0;
-    let fraction = 0;
-    
-    while (true) {
-        let nextY = y + vy;
-        if (vy < 0 && y >= targetY && nextY <= targetY) {
-            fraction = (targetY - y) / vy;
-            break;
-        }
-        y = nextY;
-        vy = (vy * DRAG) - GRAVITY;
-        ticks++;
-        if ((vy < 0 && y < targetY - 10) || ticks > 200000) break;
-    }
-    
-    return ticks + fraction;
+    return v3Simulate(charges, launchY, planeY).ticks;
 }
 
 // --- LEGACY V1 / V2 TABLE ---
@@ -610,12 +612,12 @@ function solve(){
 
   let nTotalRaw;
   if (ver.usePhysics) {
-      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
+      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY + 1);
   } else {
       nTotalRaw = chargesForDistance(ver.table, totalDist);
   }
 
-  const nTotal = Math.round(nTotalRaw);
+  let nTotal = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
   let nA = Math.round(nTotal * splitA);
   let nB = nTotal - nA;
@@ -624,12 +626,14 @@ function solve(){
   let flightTicks = 0;
   
   if (ver.usePhysics) {
-      const uA = V3_UNIT[axisA];
-      const uB = V3_UNIT[axisB];
-      let mN = nTotal > 0 ? getV3Capacity(nTotal, launchY, tY) / nTotal : 0;
-      landing.x = oX + (nA * uA.x + nB * uB.x) * mN;
-      landing.z = oZ + (nA * uA.z + nB * uB.z) * mN;
-      flightTicks = getV3FlightTime(nTotal, launchY, tY);
+      const best = v3Refine({
+          oX, oZ, uA: V3_UNIT[axisA], uB: V3_UNIT[axisB], nA0: nA, nB0: nB,
+          launchY, planeY: tY + 1,
+          errFn: (lx, lz) => convertNether ? Math.hypot(lx * 8 - tX, lz * 8 - tZ) : Math.hypot(lx - tX, lz - tZ)
+      });
+      nA = best.nA; nB = best.nB; nTotal = nA + nB;
+      landing.x = best.x; landing.z = best.z;
+      flightTicks = best.ticks;
   } else {
       const uA = UNIT[axisA];
       const uB = UNIT[axisB];
@@ -692,15 +696,16 @@ function renderResults(r, convertNether){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b>` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
     </div>
 
     <footer class=" text-sm p-6 mt-8 footer-container">
     <div class="flex flex-col space-y-1">
-        <a style="color: var(--ink-dim);">&#9432; Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+        <a style="color: var(--ink-dim);">&#9432; (v1-v2) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
         <a style="color: var(--ink-dim);">&#9432; (V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
 		<a style="color: var(--ink-dim);">&#9432; (V3) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level of the block you want to land on in the targeted coords.</a>
+		<a style="color: var(--ink-dim);">&#9432; (V3) The pearl is simulated tick by tick. You land at its last full-tick position before it hits the top of the Target Y block, so every nearby charge combination is simulated and the closest one is shown (usually offsets by 1 block).</a>
     </div>
   </footer>
   `;
@@ -749,22 +754,21 @@ function solveReturn(){
   const b = Math.max(0, (A.x*dZ - dX*A.z) / det);
   const totalDist = a + b; 
 
-  const nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
+  const nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY + 1);
   
-  const nTotal = Math.round(nTotalRaw);
+  const nTotal0 = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
-  const nA = Math.round(nTotal * splitA);
-  const nB = nTotal - nA;
+  const nA0 = Math.round(nTotal0 * splitA);
+  const nB0 = nTotal0 - nA0;
 
-  const mN = nTotal > 0 ? getV3Capacity(nTotal, launchY, tY) / nTotal : 0;
-  
-  const landing = {
-    x: oX + (nA*A.x + nB*B.x)*mN,
-    z: oZ + (nA*A.z + nB*B.z)*mN
-  };
-  const err = Math.hypot(landing.x - tX, landing.z - tZ);
-  
-  const flightTicks = getV3FlightTime(nTotal, launchY, tY);
+  const best = v3Refine({
+    oX, oZ, uA: A, uB: B, nA0, nB0, launchY, planeY: tY + 1,
+    errFn: (lx, lz) => Math.hypot(lx - tX, lz - tZ)
+  });
+  const nA = best.nA, nB = best.nB, nTotal = nA + nB;
+  const landing = { x: best.x, z: best.z };
+  const err = best.err;
+  const flightTicks = best.ticks;
 
   renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks });
 }
@@ -798,7 +802,7 @@ function renderReturnResults(r){
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
-        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">~${r.flightTicks.toFixed(2)} ticks</b>` : ''}
+        ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
     </div>
   `;
