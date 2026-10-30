@@ -15,6 +15,7 @@ the same as before, input origin (the placement origin of the schematic) and coo
 
 ### Building, Breeze setup (transport, alignment, etc)
 [Video](https://www.youtube.com/watch?v=DfEEYxQ7aA8)
+[ROM setup and encoding](https://youtu.be/7zfq3yK9kz8)
 
 ### Note
 If you want more input slot to generate windcharges (27 and not 9 dropper slot only), use the -ExtendedInput schematic to modify the input part of the cannon. place the ExtendedInput schematic at the same coords of the cannon origin and just do the modification as shown in the schematic.
