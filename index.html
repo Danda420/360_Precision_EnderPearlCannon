@@ -190,6 +190,13 @@
   }
   .facing-banner .flabel{ font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
   .facing-banner .fvalue{ font-size: 24px; font-weight: 800; margin-top: 4px; }
+  details.rank{ margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+  details.rank summary{ cursor: pointer; font-size: 12px; color: var(--blue-bright); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .rank-scroll{ overflow-x: auto; margin-top: 10px; }
+  table.rank-table{ width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .rank-table th{ text-align: left; font-weight: 600; color: var(--ink-faint); padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .rank-table td{ padding: 6px 10px; border-bottom: 1px solid var(--panel-2); white-space: nowrap; }
+  .rank-table tr.top td{ color: var(--ink); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -251,13 +258,20 @@
       <div class="coord-row hidden" id="mainTargetYRow" style="margin-top: 10px;">
         <div class="field">
           <label>Target Y (Optional)</label>
-          <input type="number" id="targetY" placeholder="e.g. 127">
+          <input type="number" id="targetY" placeholder="e.g. 128">
         </div>
       </div>
       <div class="toggle-row">
         <div class="toggle-label"><b>Nether Conversion</b><br>Turn this on if the coordinates above is in the overworld and the cannon is in the nether</div>
         <label class="switch">
           <input type="checkbox" id="netherConvert">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row" id="midairRow">
+        <div class="toggle-label"><b>Midair TP</b><br>Turn this on to show where to place the stopper block if you're targeting somewhere midair.</div>
+        <label class="switch">
+          <input type="checkbox" id="midairTP">
           <span class="slider"></span>
         </label>
       </div>
@@ -302,8 +316,15 @@
       <div class="coord-row hidden" id="returnTargetYRow" style="margin-top: 10px;">
         <div class="field">
           <label>Target Y (Optional)</label>
-          <input type="number" id="returnTargetY" placeholder="e.g. 127">
+          <input type="number" id="returnTargetY" placeholder="e.g. 128">
         </div>
+      </div>
+      <div class="toggle-row" id="returnMidairRow">
+        <div class="toggle-label"><b>Midair TP</b><br>Turn this on to show where to place the stopper block if you're targeting somewhere midair.</div>
+        <label class="switch">
+          <input type="checkbox" id="returnMidairTP">
+          <span class="slider"></span>
+        </label>
       </div>
     </div>
   </div>
@@ -336,18 +357,19 @@ function v3Simulate(charges, launchY, planeY) {
     let f = 1.0;
     let m = 0;
     let ticks = 0;
+    let hitY = y, hitF = f;
 
     while (true) {
         const nextY = y + vy;
-        if (vy < 0 && y > planeY && nextY <= planeY) break;
+        if (vy < 0 && y > planeY && nextY <= planeY) { hitY = nextY; hitF = f; break; }
         m += f;
         y = nextY;
         vy = (vy - GRAVITY) * DRAG;
         f *= DRAG;
         ticks++;
-        if ((vy < 0 && y < planeY - 10) || ticks > 200000) break;
+        if ((vy < 0 && y < planeY - 10) || ticks > 200000) { hitY = y + vy; hitF = f; break; }
     }
-    return { m, ticks };
+    return { m, ticks, y, nextY: hitY, nextF: hitF };
 }
 
 function getV3Capacity(charges, launchY, planeY) {
@@ -356,28 +378,33 @@ function getV3Capacity(charges, launchY, planeY) {
 }
 
 function v3Refine(o) {
-    const R = 12;
+    const R = 12, TOP = 10;
     const cache = new Map();
     const simFor = (n) => {
         if (!cache.has(n)) cache.set(n, v3Simulate(n, o.launchY, o.planeY));
         return cache.get(n);
     };
-    let best = null;
+    const all = [];
     for (let nA = Math.max(0, o.nA0 - R); nA <= o.nA0 + R; nA++) {
         for (let nB = Math.max(0, o.nB0 - R); nB <= o.nB0 + R; nB++) {
             const n = nA + nB;
             if (n <= 0) continue;
             const sim = simFor(n);
-            const x = o.oX + (nA * o.uA.x + nB * o.uB.x) * sim.m;
-            const z = o.oZ + (nA * o.uA.z + nB * o.uB.z) * sim.m;
-            const err = o.errFn(x, z);
-            if (!best || err < best.err - 1e-9 || (Math.abs(err - best.err) <= 1e-9 && n < best.nA + best.nB)) {
-                best = { nA, nB, x, z, err, ticks: sim.ticks };
-            }
+            const hx = nA * o.uA.x + nB * o.uB.x;
+            const hz = nA * o.uA.z + nB * o.uB.z;
+            const x = o.oX + hx * sim.m;
+            const z = o.oZ + hz * sim.m;
+            all.push({ nA, nB, x, y: sim.y, z, err: o.errFn(x, z), ticks: sim.ticks,
+                       next: { x: x + hx * sim.nextF, y: sim.nextY, z: z + hz * sim.nextF } });
         }
     }
-    if (!best) best = { nA: 0, nB: 0, x: o.oX, z: o.oZ, err: o.errFn(o.oX, o.oZ), ticks: 0 };
-    return best;
+    all.sort((p, q) => (Math.abs(p.err - q.err) > 1e-9) ? p.err - q.err : (p.nA + p.nB) - (q.nA + q.nB));
+    if (!all.length) {
+        all.push({ nA: 0, nB: 0, x: o.oX, y: o.launchY, z: o.oZ, err: o.errFn(o.oX, o.oZ), ticks: 0,
+                    next: { x: o.oX, y: o.launchY, z: o.oZ } });
+    }
+    const ranked = all.slice(0, TOP);
+    return Object.assign({}, ranked[0], { ranked });
 }
 
 function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
@@ -478,7 +505,9 @@ function selectVersion(el) {
     document.getElementById('mainTargetYRow'), 
     document.getElementById('mainOriginYRow'),
     document.getElementById('returnTargetYRow'),
-    document.getElementById('returnOriginYRow')
+    document.getElementById('returnOriginYRow'),
+    document.getElementById('midairRow'),
+    document.getElementById('returnMidairRow')
   ];
   
   yRows.forEach(row => {
@@ -581,7 +610,7 @@ function solve(){
   let tZ = parseFloat(document.getElementById('targetZ').value);
   
   const tY_val = document.getElementById('targetY').value;
-  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
+  const tY = tY_val === "" ? oY : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter a target X and Z.');
@@ -590,6 +619,7 @@ function solve(){
 
   const ver = VERSIONS[selectedVersion];
   const convertNether = document.getElementById('netherConvert').checked;
+  const midairTP = ver.usePhysics && document.getElementById('midairTP').checked;
   
   const launchY = oY + DETONATION_Y_OFFSET;
 
@@ -612,7 +642,7 @@ function solve(){
 
   let nTotalRaw;
   if (ver.usePhysics) {
-      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY + 1);
+      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
   } else {
       nTotalRaw = chargesForDistance(ver.table, totalDist);
   }
@@ -622,18 +652,20 @@ function solve(){
   let nA = Math.round(nTotal * splitA);
   let nB = nTotal - nA;
 
-  let landing = {x: 0, z: 0};
+  let landing = {x: 0, z: 0, y: undefined};
+  let ranked = null;
+  let stopper = null;
   let flightTicks = 0;
   
   if (ver.usePhysics) {
       const best = v3Refine({
           oX, oZ, uA: V3_UNIT[axisA], uB: V3_UNIT[axisB], nA0: nA, nB0: nB,
-          launchY, planeY: tY + 1,
+          launchY, planeY: tY,
           errFn: (lx, lz) => convertNether ? Math.hypot(lx * 8 - tX, lz * 8 - tZ) : Math.hypot(lx - tX, lz - tZ)
       });
       nA = best.nA; nB = best.nB; nTotal = nA + nB;
-      landing.x = best.x; landing.z = best.z;
-      flightTicks = best.ticks;
+      landing.x = best.x; landing.z = best.z; landing.y = best.y;
+      flightTicks = best.ticks; ranked = best.ranked; stopper = best.next;
   } else {
       const uA = UNIT[axisA];
       const uB = UNIT[axisB];
@@ -654,10 +686,36 @@ function solve(){
   const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
   const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks }, convertNether);
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks, ranked, midairTP, stopper }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
+
+function fmtLanding(l){
+  return l.y === undefined
+    ? `${l.x.toFixed(0)}, ${l.z.toFixed(0)}`
+    : `${l.x.toFixed(2)}, ${l.y.toFixed(2)}, ${l.z.toFixed(2)}`;
+}
+
+function stopperText(n){
+  return `${Math.floor(n.x)}, ${Math.floor(n.y)}, ${Math.floor(n.z)}`;
+}
+
+function rankHTML(ranked, axisA, axisB, convertNether, midair){
+  if (!ranked || !ranked.length) return '';
+  const rows = ranked.map((c, i) => `<tr${i === 0 ? ' class="top"' : ''}>
+        <td>${i + 1}</td><td>${c.nA}${axisA} + ${c.nB}${axisB}</td><td>${c.nA + c.nB}</td>
+        <td>${c.x.toFixed(2)}</td><td>${c.y.toFixed(2)}</td><td>${c.z.toFixed(2)}</td>
+        <td>${c.err.toFixed(2)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next)}</td>` : ''}</tr>`).join('');
+  const note = convertNether ? ' &middot; X/Z in Nether coords, offset in overworld blocks' : '';
+  return `<details class="rank" open>
+      <summary>Closest ${ranked.length} configurations${note}</summary>
+      <div class="rank-scroll"><table class="rank-table">
+        <thead><tr><th>#</th><th>Charges</th><th>Total</th><th>X</th><th>Y</th><th>Z</th><th>Offset</th><th>Ticks</th>${midair ? '<th>Stopper block</th>' : ''}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </details>`;
+}
 
 function renderResults(r, convertNether){
   const resContainer = document.getElementById('results');
@@ -690,22 +748,24 @@ function renderResults(r, convertNether){
       </div>
       <div class="landing-details" style="margin-top: 16px; font-size: 14px; color: var(--ink-dim); line-height: 1.6;">
         ${conversionHTML}
-        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing)}</b>
         ${owHTML}
+        ${r.midairTP && r.stopper ? `<br>Stopper block${convertNether ? ' (Nether)' : ''}: <b style="color: var(--ink);">${stopperText(r.stopper)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${r.stopper.y.toFixed(2)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
         ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
+      ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP)}
     </div>
 
     <footer class=" text-sm p-6 mt-8 footer-container">
     <div class="flex flex-col space-y-1">
-        <a style="color: var(--ink-dim);">&#9432; (v1-v2) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+	<a style="color: var(--ink-dim);">&#9432; (V3) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level you will be standing on after landing).</a>
+		<a style="color: var(--ink-dim);">&#9432; (V3) The pearl is simulated tick by tick. You land at its last full-tick position before its next move would reach the Target Y level, so every nearby charge combination is simulated and the closest ones are ranked.</a>
+        <a style="color: var(--ink-dim);">&#9432; (V1-V2) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
         <a style="color: var(--ink-dim);">&#9432; (V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
-		<a style="color: var(--ink-dim);">&#9432; (V3) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level of the block you want to land on in the targeted coords.</a>
-		<a style="color: var(--ink-dim);">&#9432; (V3) The pearl is simulated tick by tick. You land at its last full-tick position before it hits the top of the Target Y block, so every nearby charge combination is simulated and the closest one is shown (usually offsets by 1 block).</a>
     </div>
   </footer>
   `;
@@ -736,13 +796,14 @@ function solveReturn(){
   const tZ = parseFloat(document.getElementById('returnTargetZ').value);
   
   const tY_val = document.getElementById('returnTargetY').value;
-  const tY = tY_val === "" ? (oY - 1) : parseFloat(tY_val);
+  const tY = tY_val === "" ? oY : parseFloat(tY_val);
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter the main cannon\'s X and Z.');
     return;
   }
   
+  const midairTP = selectedVersion === 3 && document.getElementById('returnMidairTP').checked;
   const launchY = oY + DETONATION_Y_OFFSET;
 
   const dX = tX - oX, dZ = tZ - oZ;
@@ -754,7 +815,7 @@ function solveReturn(){
   const b = Math.max(0, (A.x*dZ - dX*A.z) / det);
   const totalDist = a + b; 
 
-  const nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY + 1);
+  const nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
   
   const nTotal0 = Math.round(nTotalRaw);
   const splitA = totalDist > 0 ? a / totalDist : 0;
@@ -762,15 +823,15 @@ function solveReturn(){
   const nB0 = nTotal0 - nA0;
 
   const best = v3Refine({
-    oX, oZ, uA: A, uB: B, nA0, nB0, launchY, planeY: tY + 1,
+    oX, oZ, uA: A, uB: B, nA0, nB0, launchY, planeY: tY,
     errFn: (lx, lz) => Math.hypot(lx - tX, lz - tZ)
   });
   const nA = best.nA, nB = best.nB, nTotal = nA + nB;
-  const landing = { x: best.x, z: best.z };
+  const landing = { x: best.x, y: best.y, z: best.z };
   const err = best.err;
   const flightTicks = best.ticks;
 
-  renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks });
+  renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks, ranked: best.ranked, midairTP, stopper: best.next });
 }
 
 function renderReturnResults(r){
@@ -797,13 +858,15 @@ function renderReturnResults(r){
         </div>
       </div>
       <div class="landing-details">
-        Predicted landing: <b style="color: var(--ink);">${r.landing.x.toFixed(0)}, ${r.landing.z.toFixed(0)}</b>
+        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing)}</b>
+        ${r.midairTP && r.stopper ? `<br>Stopper block: <b style="color: var(--ink);">${stopperText(r.stopper)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${r.stopper.y.toFixed(2)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
         ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
+      ${rankHTML(r.ranked, r.cfg.axisA, r.cfg.axisB, false, r.midairTP)}
     </div>
   `;
 }
