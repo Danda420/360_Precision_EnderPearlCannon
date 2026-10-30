@@ -15,6 +15,7 @@ the same as before, input origin (the placement origin of the schematic) and coo
 
 ### Building, Breeze setup (transport, alignment, etc)
 [Video](https://www.youtube.com/watch?v=DfEEYxQ7aA8)
+
 [ROM setup and encoding](https://youtu.be/7zfq3yK9kz8)
 
 ### Note
