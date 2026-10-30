@@ -599,9 +599,11 @@ function formatStacks(n){
   return `${stacks} x 64 + ${remainder}`;
 }
 
+const FLOOR_Y_WARNING = "Target Y is filled in, but Floor Y is empty.\n\nEnter a Floor Y (or clear Target Y) to solve.";
+
 function solve(){
-  const oX = parseFloat(document.getElementById('originX').value) || 0;
-  const oZ = parseFloat(document.getElementById('originZ').value) || 0;
+  const oX = parseFloat(document.getElementById('originX').value);
+  const oZ = parseFloat(document.getElementById('originZ').value);
   
   const oY_val = document.getElementById('originY').value;
   const oY = oY_val === "" ? 0 : parseFloat(oY_val);
@@ -611,9 +613,21 @@ function solve(){
   
   const tY_val = document.getElementById('targetY').value;
   const tY = tY_val === "" ? oY : parseFloat(tY_val);
+  const yApprox = oY_val === "" && tY_val === "";
+
+  if (isNaN(oX) || isNaN(oZ)){
+    alert('Enter a cannon origin X and Z.');
+    return;
+  }
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter a target X and Z.');
+    return;
+  }
+
+  if (VERSIONS[selectedVersion].usePhysics && tY_val !== "" && oY_val === "") {
+    alert(FLOOR_Y_WARNING);
+    document.getElementById('originY').focus();
     return;
   }
 
@@ -686,27 +700,31 @@ function solve(){
   const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
   const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks, ranked, midairTP, stopper }, convertNether);
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks, ranked, midairTP, stopper, yApprox }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
 
-function fmtLanding(l){
+function yFmt(y, approx){
+  return (approx ? '~' : '') + y.toFixed(2);
+}
+
+function fmtLanding(l, approx){
   return l.y === undefined
     ? `${l.x.toFixed(0)}, ${l.z.toFixed(0)}`
-    : `${l.x.toFixed(2)}, ${l.y.toFixed(2)}, ${l.z.toFixed(2)}`;
+    : `${l.x.toFixed(2)}, ${yFmt(l.y, approx)}, ${l.z.toFixed(2)}`;
 }
 
-function stopperText(n){
-  return `${Math.floor(n.x)}, ${Math.floor(n.y)}, ${Math.floor(n.z)}`;
+function stopperText(n, approx){
+  return `${Math.floor(n.x)}, ${approx ? '~' : ''}${Math.floor(n.y)}, ${Math.floor(n.z)}`;
 }
 
-function rankHTML(ranked, axisA, axisB, convertNether, midair){
+function rankHTML(ranked, axisA, axisB, convertNether, midair, approx){
   if (!ranked || !ranked.length) return '';
   const rows = ranked.map((c, i) => `<tr${i === 0 ? ' class="top"' : ''}>
         <td>${i + 1}</td><td>${c.nA}${axisA} + ${c.nB}${axisB}</td><td>${c.nA + c.nB}</td>
-        <td>${c.x.toFixed(2)}</td><td>${c.y.toFixed(2)}</td><td>${c.z.toFixed(2)}</td>
-        <td>${c.err.toFixed(2)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next)}</td>` : ''}</tr>`).join('');
+        <td>${c.x.toFixed(2)}</td><td>${yFmt(c.y, approx)}</td><td>${c.z.toFixed(2)}</td>
+        <td>${c.err.toFixed(2)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next, approx)}</td>` : ''}</tr>`).join('');
   const note = convertNether ? ' &middot; X/Z in Nether coords, offset in overworld blocks' : '';
   return `<details class="rank" open>
       <summary>Closest ${ranked.length} configurations${note}</summary>
@@ -748,16 +766,16 @@ function renderResults(r, convertNether){
       </div>
       <div class="landing-details" style="margin-top: 16px; font-size: 14px; color: var(--ink-dim); line-height: 1.6;">
         ${conversionHTML}
-        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing)}</b>
+        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing, r.yApprox)}</b>
         ${owHTML}
-        ${r.midairTP && r.stopper ? `<br>Stopper block${convertNether ? ' (Nether)' : ''}: <b style="color: var(--ink);">${stopperText(r.stopper)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${r.stopper.y.toFixed(2)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
+        ${r.midairTP && r.stopper ? `<br>Stopper block${convertNether ? ' (Nether)' : ''}: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
         ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
-      ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP)}
+      ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP, r.yApprox)}
     </div>
 
     <footer class=" text-sm p-6 mt-8 footer-container">
@@ -786,8 +804,8 @@ function chooseReturnConfig(dX, dZ){
 }
 
 function solveReturn(){
-  const oX = parseFloat(document.getElementById('returnOriginX').value) || 0;
-  const oZ = parseFloat(document.getElementById('returnOriginZ').value) || 0;
+  const oX = parseFloat(document.getElementById('returnOriginX').value);
+  const oZ = parseFloat(document.getElementById('returnOriginZ').value);
   
   const oY_val = document.getElementById('returnOriginY').value;
   const oY = oY_val === "" ? 0 : parseFloat(oY_val);
@@ -797,9 +815,21 @@ function solveReturn(){
   
   const tY_val = document.getElementById('returnTargetY').value;
   const tY = tY_val === "" ? oY : parseFloat(tY_val);
+  const yApprox = oY_val === "" && tY_val === "";
+
+  if (isNaN(oX) || isNaN(oZ)){
+    alert('Enter the return cannon origin X and Z.');
+    return;
+  }
 
   if (isNaN(tX) || isNaN(tZ)){
     alert('Enter the main cannon\'s X and Z.');
+    return;
+  }
+
+  if (selectedVersion === 3 && tY_val !== "" && oY_val === "") {
+    alert(FLOOR_Y_WARNING);
+    document.getElementById('returnOriginY').focus();
     return;
   }
   
@@ -831,7 +861,7 @@ function solveReturn(){
   const err = best.err;
   const flightTicks = best.ticks;
 
-  renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks, ranked: best.ranked, midairTP, stopper: best.next });
+  renderReturnResults({ cfg, nA, nB, nTotal, landing, err, flightTicks, ranked: best.ranked, midairTP, stopper: best.next, yApprox });
 }
 
 function renderReturnResults(r){
@@ -858,15 +888,15 @@ function renderReturnResults(r){
         </div>
       </div>
       <div class="landing-details">
-        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing)}</b>
-        ${r.midairTP && r.stopper ? `<br>Stopper block: <b style="color: var(--ink);">${stopperText(r.stopper)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${r.stopper.y.toFixed(2)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
+        Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing, r.yApprox)}</b>
+        ${r.midairTP && r.stopper ? `<br>Stopper block: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
         ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
-      ${rankHTML(r.ranked, r.cfg.axisA, r.cfg.axisB, false, r.midairTP)}
+      ${rankHTML(r.ranked, r.cfg.axisA, r.cfg.axisB, false, r.midairTP, r.yApprox)}
     </div>
   `;
 }
