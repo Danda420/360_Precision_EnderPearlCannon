@@ -239,6 +239,7 @@
         <div class="version-group" id="verGroup">
           <div class="version-btn" data-ver="1" onclick="selectVersion(this)">I</div>
           <div class="version-btn" data-ver="2" onclick="selectVersion(this)">II</div>
+          <div class="version-btn" data-ver="4" onclick="selectVersion(this)">III-Lite</div>
           <div class="version-btn active" data-ver="3" onclick="selectVersion(this)">III</div>
         </div>
       </div>
@@ -294,7 +295,7 @@
           <input type="number" id="returnOriginZ" placeholder="e.g. 0">
         </div>
       </div>
-      <div class="coord-row hidden" id="returnOriginYRow" style="margin-top: 10px;">
+      <div class="coord-row" id="returnOriginYRow" style="margin-top: 10px;">
         <div class="field">
           <label>Floor Y (Optional)</label>
           <input type="number" id="returnOriginY" placeholder="e.g. 128">
@@ -313,7 +314,7 @@
           <input type="number" id="returnTargetZ" placeholder="e.g. 0">
         </div>
       </div>
-      <div class="coord-row hidden" id="returnTargetYRow" style="margin-top: 10px;">
+      <div class="coord-row" id="returnTargetYRow" style="margin-top: 10px;">
         <div class="field">
           <label>Target Y (Optional)</label>
           <input type="number" id="returnTargetY" placeholder="e.g. 128">
@@ -334,6 +335,7 @@
 </div>
 
 <script>
+// V3 (Breeze)
 const V3_BASE_Y_VEL = 0.08707139660848055;
 const V3_Y_VEL_PER_CHARGE = 0.0102967724821188;
 const GRAVITY = 0.03;
@@ -351,8 +353,22 @@ const V3_UNIT = {
   W: {x: -v3_mag, z: -v3_drf}
 };
 
-function v3Simulate(charges, launchY, planeY) {
-    let vy = V3_BASE_Y_VEL + (charges * V3_Y_VEL_PER_CHARGE);
+// V3-Lite (Windcharge)
+const V3_LITE_CHARGES_PER_ITEM = 3;
+
+const V3_LITE_Y_VEL_PER_CHARGE = 0.00941562491517655;
+const v3_lite_mag = 0.7751444169174233;
+const v3_lite_drf = 0.029053388939933086;
+
+const V3_LITE_UNIT = {
+  N: {x:  v3_lite_drf, z: -v3_lite_mag},
+  E: {x:  v3_lite_mag, z:  v3_lite_drf},
+  S: {x: -v3_lite_drf, z:  v3_lite_mag},
+  W: {x: -v3_lite_mag, z: -v3_lite_drf}
+};
+
+function v3Simulate(charges, launchY, planeY, prof = PROFILES.breeze) {
+    let vy = prof.baseY + (charges * prof.perY);
     let y = launchY;
     let f = 1.0;
     let m = 0;
@@ -372,16 +388,16 @@ function v3Simulate(charges, launchY, planeY) {
     return { m, ticks, y, nextY: hitY, nextF: hitF };
 }
 
-function getV3Capacity(charges, launchY, planeY) {
+function getV3Capacity(charges, launchY, planeY, prof = PROFILES.breeze) {
     if (charges <= 0) return 0;
-    return charges * v3Simulate(charges, launchY, planeY).m;
+    return charges * v3Simulate(charges, launchY, planeY, prof).m;
 }
 
 function v3Refine(o) {
     const R = 12, TOP = 10;
     const cache = new Map();
     const simFor = (n) => {
-        if (!cache.has(n)) cache.set(n, v3Simulate(n, o.launchY, o.planeY));
+        if (!cache.has(n)) cache.set(n, v3Simulate(n, o.launchY, o.planeY, o.prof));
         return cache.get(n);
     };
     const all = [];
@@ -407,11 +423,11 @@ function v3Refine(o) {
     return Object.assign({}, ranked[0], { ranked });
 }
 
-function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
+function findV3ChargesForCapacity(reqTotal, launchY, targetY, prof = PROFILES.breeze) {
     if (reqTotal <= 0) return 0;
 
     let high = 64;
-    while (getV3Capacity(high, launchY, targetY) < reqTotal) {
+    while (getV3Capacity(high, launchY, targetY, prof) < reqTotal) {
         high *= 2;
         if (high > 1e9) break; 
     }
@@ -420,7 +436,7 @@ function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
 
     for (let i = 0; i < 80; i++) {
         let mid = (low + high) / 2;
-        let cap = getV3Capacity(mid, launchY, targetY);
+        let cap = getV3Capacity(mid, launchY, targetY, prof);
         if (cap < reqTotal) {
             low = mid;
         } else {
@@ -431,12 +447,14 @@ function findV3ChargesForCapacity(reqTotal, launchY, targetY) {
     return best;
 }
 
-function getV3FlightTime(charges, launchY, planeY) {
+function getV3FlightTime(charges, launchY, planeY, prof = PROFILES.breeze) {
     if (charges <= 0) return 0;
-    return v3Simulate(charges, launchY, planeY).ticks;
+    return v3Simulate(charges, launchY, planeY, prof).ticks;
 }
 
 // --- LEGACY V1 / V2 TABLE ---
+const DRIFT = 0.037481;
+
 const TABLE_V1 = [
   {n:4,   d:120.496},{n:5,   d:161.292},{n:6,   d:205.851},{n:7,   d:253.946},
   {n:8,   d:305.359},{n:10,  d:421.584},{n:12,  d:549.624},{n:16,  d:844.965},
@@ -463,8 +481,7 @@ const TABLE_V2 = [
   {n:1536, d:130124.754},{n:1600, d:135546.619},{n:1664, d:140968.484},{n:1728, d:146390.349}
 ];
 
-const DRIFT = 0.037481;
-
+// V3 (Breeze)
 const UNIT = {
   N: {x: DRIFT, z: -1},
   E: {x: 1, z: DRIFT},
@@ -482,6 +499,24 @@ function axisLoadTicks(charges){
   return GEN_PRIMING_TICKS + GEN_ALIGN_TICKS + (GEN_RATE * charges + GEN_BASE);
 }
 
+// V3-Lite (Windcharge)
+const LITE_GEN_PRIMING_TICKS = 40;
+const LITE_MAIN_RATE = 8.0370;
+const LITE_MAIN_BASE = 1.39;
+
+function liteMainLoadTicks(items){
+  if (items <= 0) return 0;
+  return LITE_MAIN_RATE * items + LITE_MAIN_BASE;
+}
+
+function liteAxisLoadTicks(charges){
+  if (charges <= 0) return 0;
+  const main = Math.floor(charges / V3_LITE_CHARGES_PER_ITEM);
+  const fine = charges % V3_LITE_CHARGES_PER_ITEM;
+  const loadTicks = Math.max(liteMainLoadTicks(main), LITE_MAIN_RATE * fine);
+  return LITE_GEN_PRIMING_TICKS + loadTicks + GEN_ALIGN_TICKS;
+}
+
 function formatTicks(t){
   const totalSec = t / 20;
   const m = Math.floor(totalSec / 60);
@@ -489,10 +524,18 @@ function formatTicks(t){
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+const PROFILES = {
+  breeze: { baseY: V3_BASE_Y_VEL,   perY: V3_Y_VEL_PER_CHARGE,   detY: DETONATION_Y_OFFSET,
+            unit: V3_UNIT,   chargesPerItem: 1,                     loadTicks: (n) => axisLoadTicks(n) },
+  windcharge:   { baseY: V3_BASE_Y_VEL, perY: V3_LITE_Y_VEL_PER_CHARGE, detY: DETONATION_Y_OFFSET,
+            unit: V3_LITE_UNIT, chargesPerItem: V3_LITE_CHARGES_PER_ITEM, loadTicks: (n) => liteAxisLoadTicks(n) }
+};
+
 const VERSIONS = {
-  1: { label: 'I',   table: TABLE_V1, usePhysics: false },
-  2: { label: 'II',  table: TABLE_V2, usePhysics: false },
-  3: { label: 'III', usePhysics: true } 
+  1: { label: 'I',        table: TABLE_V1, usePhysics: false },
+  2: { label: 'II',       table: TABLE_V2, usePhysics: false },
+  3: { label: 'III',      usePhysics: true, profile: PROFILES.breeze },
+  4: { label: 'III-Lite', usePhysics: true, profile: PROFILES.windcharge }
 };
 let selectedVersion = 3; 
 
@@ -504,15 +547,12 @@ function selectVersion(el) {
   const yRows = [
     document.getElementById('mainTargetYRow'), 
     document.getElementById('mainOriginYRow'),
-    document.getElementById('returnTargetYRow'),
-    document.getElementById('returnOriginYRow'),
-    document.getElementById('midairRow'),
-    document.getElementById('returnMidairRow')
+    document.getElementById('midairRow')
   ];
   
   yRows.forEach(row => {
     if(row) {
-      if (selectedVersion === 3) {
+      if (VERSIONS[selectedVersion].usePhysics) {
           row.classList.remove('hidden');
       } else {
           row.classList.add('hidden');
@@ -557,20 +597,20 @@ function chargesForDistance(table, d){
   return b.n + slope*(d - b.d);
 }
 
-function solveAxesRaw(dX, dZ, axisA, axisB, usePhysics){
-  const A = usePhysics ? V3_UNIT[axisA] : UNIT[axisA];
-  const B = usePhysics ? V3_UNIT[axisB] : UNIT[axisB];
+function solveAxesRaw(dX, dZ, axisA, axisB, units){
+  const A = units[axisA];
+  const B = units[axisB];
   const det = A.x*B.z - B.x*A.z;
   const a = (dX*B.z - B.x*dZ) / det;
   const b = (A.x*dZ - dX*A.z) / det;
   return {a, b};
 }
 
-function chooseAxes(dX, dZ, usePhysics){
+function chooseAxes(dX, dZ, units){
   const pairs = [['E','N'],['E','S'],['W','N'],['W','S']];
   let best = null;
   for (const [axisA, axisB] of pairs){
-    const r = solveAxesRaw(dX, dZ, axisA, axisB, usePhysics);
+    const r = solveAxesRaw(dX, dZ, axisA, axisB, units);
     if (r.a >= -1e-6 && r.b >= -1e-6){
       const total = r.a + r.b;
       if (!best || total < best.total){
@@ -580,7 +620,7 @@ function chooseAxes(dX, dZ, usePhysics){
   }
   if (!best){
     for (const [axisA, axisB] of pairs){
-      const r = solveAxesRaw(dX, dZ, axisA, axisB, usePhysics);
+      const r = solveAxesRaw(dX, dZ, axisA, axisB, units);
       const penalty = Math.max(0,-r.a) + Math.max(0,-r.b);
       if (!best || penalty < best.penalty){
         best = {axisA, axisB, a: Math.max(r.a,0), b: Math.max(r.b,0), penalty};
@@ -635,7 +675,8 @@ function solve(){
   const convertNether = document.getElementById('netherConvert').checked;
   const midairTP = ver.usePhysics && document.getElementById('midairTP').checked;
   
-  const launchY = oY + DETONATION_Y_OFFSET;
+  const prof = ver.usePhysics ? ver.profile : PROFILES.breeze;
+  const launchY = oY + prof.detY;
 
   let targetX_nether = tX;
   let targetZ_nether = tZ;
@@ -648,7 +689,7 @@ function solve(){
   const dX = targetX_nether - oX;
   const dZ = targetZ_nether - oZ;
 
-  const chosen = chooseAxes(dX, dZ, ver.usePhysics);
+  const chosen = chooseAxes(dX, dZ, ver.usePhysics ? prof.unit : UNIT);
   const axisA = chosen.axisA, axisB = chosen.axisB;
   
   const a = chosen.a, b = chosen.b;
@@ -656,7 +697,7 @@ function solve(){
 
   let nTotalRaw;
   if (ver.usePhysics) {
-      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY);
+      nTotalRaw = findV3ChargesForCapacity(totalDist, launchY, tY, prof);
   } else {
       nTotalRaw = chargesForDistance(ver.table, totalDist);
   }
@@ -673,8 +714,8 @@ function solve(){
   
   if (ver.usePhysics) {
       const best = v3Refine({
-          oX, oZ, uA: V3_UNIT[axisA], uB: V3_UNIT[axisB], nA0: nA, nB0: nB,
-          launchY, planeY: tY,
+          oX, oZ, uA: prof.unit[axisA], uB: prof.unit[axisB], nA0: nA, nB0: nB,
+          launchY, planeY: tY, prof,
           errFn: (lx, lz) => convertNether ? Math.hypot(lx * 8 - tX, lz * 8 - tZ) : Math.hypot(lx - tX, lz - tZ)
       });
       nA = best.nA; nB = best.nB; nTotal = nA + nB;
@@ -696,11 +737,11 @@ function solve(){
     err = Math.sqrt(Math.pow(landing.x - tX, 2) + Math.pow(landing.z - tZ, 2));
   }
 
-  const showLoadTime = selectedVersion === 3;
-  const loadTicksA = showLoadTime ? axisLoadTicks(nA) : null;
-  const loadTicksB = showLoadTime ? axisLoadTicks(nB) : null;
+  const showLoadTime = ver.usePhysics;
+  const loadTicksA = showLoadTime ? prof.loadTicks(nA) : null;
+  const loadTicksB = showLoadTime ? prof.loadTicks(nB) : null;
 
-  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks, ranked, midairTP, stopper, yApprox }, convertNether);
+  renderResults({ axisA, axisB, nA, nB, nTotal, landing, err, targetX_nether, targetZ_nether, verLabel: ver.label, showLoadTime, loadTicksA, loadTicksB, flightTicks, ranked, midairTP, stopper, yApprox, prof: ver.usePhysics ? prof : null }, convertNether);
 }
 
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
@@ -719,13 +760,27 @@ function stopperText(n, approx){
   return `${Math.floor(n.x)}, ${approx ? '~' : ''}${Math.floor(n.y)}, ${Math.floor(n.z)}`;
 }
 
-function rankHTML(ranked, axisA, axisB, convertNether, midair, approx){
+function chargeLoadHTML(n, prof){
+  if (!prof || prof.chargesPerItem <= 1) return formatStacks(n);
+  const k = prof.chargesPerItem;
+  const main = Math.floor(n / k);
+  return `Main input: ${formatStacks(main)} ${main === 1 ? 'item' : 'items'}<br>Fine-tune: ${n % k}`;
+}
+
+function chargeSplit(n, prof){
+  if (!prof || prof.chargesPerItem <= 1) return '';
+  const k = prof.chargesPerItem;
+  return ` (${Math.floor(n / k)}+${n % k})`;
+}
+
+function rankHTML(ranked, axisA, axisB, convertNether, midair, approx, prof){
   if (!ranked || !ranked.length) return '';
   const rows = ranked.map((c, i) => `<tr${i === 0 ? ' class="top"' : ''}>
-        <td>${i + 1}</td><td>${c.nA}${axisA} + ${c.nB}${axisB}</td><td>${c.nA + c.nB}</td>
+        <td>${i + 1}</td><td>${c.nA}${axisA}${chargeSplit(c.nA, prof)} + ${c.nB}${axisB}${chargeSplit(c.nB, prof)}</td><td>${c.nA + c.nB}</td>
         <td>${c.x.toFixed(2)}</td><td>${yFmt(c.y, approx)}</td><td>${c.z.toFixed(2)}</td>
         <td>${c.err.toFixed(2)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next, approx)}</td>` : ''}</tr>`).join('');
-  const note = convertNether ? ' &middot; X/Z in Nether coords, offset in overworld blocks' : '';
+  let note = convertNether ? ' &middot; X/Z in Nether coords, offset in overworld blocks' : '';
+  if (prof && prof.chargesPerItem > 1) note += ' &middot; charges as n (main items + fine-tune)';
   return `<details class="rank" open>
       <summary>Closest ${ranked.length} configurations${note}</summary>
       <div class="rank-scroll"><table class="rank-table">
@@ -754,13 +809,13 @@ function renderResults(r, convertNether){
         <div class="load-card">
           <div class="axis">${AXIS_NAME[r.axisA]}</div>
           <div class="time">${r.nA}<span> charges</span></div>
-          <div class="stacks">${formatStacks(r.nA)}</div>
+          <div class="stacks">${chargeLoadHTML(r.nA, r.prof)}</div>
           ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksA)} to load</div>` : ''}
         </div>
         <div class="load-card">
           <div class="axis">${AXIS_NAME[r.axisB]}</div>
           <div class="time">${r.nB}<span> charges</span></div>
-          <div class="stacks">${formatStacks(r.nB)}</div>
+          <div class="stacks">${chargeLoadHTML(r.nB, r.prof)}</div>
           ${r.showLoadTime ? `<div class="stacks" style="margin-top:6px; color: var(--blue-bright);">~${formatTicks(r.loadTicksB)} to load</div>` : ''}
         </div>
       </div>
@@ -775,15 +830,15 @@ function renderResults(r, convertNether){
         Total charges: <b style="color: var(--ink);">${r.nTotal}</b>
         ${r.flightTicks > 0 ? `<br>Flight time: <b style="color: var(--ink);">${r.flightTicks} ticks</b>` : ''}
       </div>
-      ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP, r.yApprox)}
+      ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP, r.yApprox, r.prof)}
     </div>
 
     <footer class=" text-sm p-6 mt-8 footer-container">
     <div class="flex flex-col space-y-1">
-	<a style="color: var(--ink-dim);">&#9432; (V3) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level you will be standing on after landing).</a>
-		<a style="color: var(--ink-dim);">&#9432; (V3) The pearl is simulated tick by tick. You land at its last full-tick position before its next move would reach the Target Y level, so every nearby charge combination is simulated and the closest ones are ranked.</a>
-        <a style="color: var(--ink-dim);">&#9432; (V1-V2) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
-        <a style="color: var(--ink-dim);">&#9432; (V1-V2) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
+	<a style="color: var(--ink-dim);">&#9432; (III &amp; III-Lite) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level you will be standing on after landing).</a>
+		<a style="color: var(--ink-dim);">&#9432; (III &amp; III-Lite) The pearl is simulated tick by tick. You land at its last full-tick position before its next move would reach the Target Y level, so every nearby charge combination is simulated and the closest ones are ranked.</a>
+        <a style="color: var(--ink-dim);">&#9432; (I &amp; II) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
+        <a style="color: var(--ink-dim);">&#9432; (I &amp; II) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
     </div>
   </footer>
   `;
@@ -827,13 +882,13 @@ function solveReturn(){
     return;
   }
 
-  if (selectedVersion === 3 && tY_val !== "" && oY_val === "") {
+  if (tY_val !== "" && oY_val === "") {
     alert(FLOOR_Y_WARNING);
     document.getElementById('returnOriginY').focus();
     return;
   }
   
-  const midairTP = selectedVersion === 3 && document.getElementById('returnMidairTP').checked;
+  const midairTP = document.getElementById('returnMidairTP').checked;
   const launchY = oY + DETONATION_Y_OFFSET;
 
   const dX = tX - oX, dZ = tZ - oZ;
