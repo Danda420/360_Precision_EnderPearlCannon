@@ -764,7 +764,7 @@ function chargeLoadHTML(n, prof){
   if (!prof || prof.chargesPerItem <= 1) return formatStacks(n);
   const k = prof.chargesPerItem;
   const main = Math.floor(n / k);
-  return `Main input: ${formatStacks(main)} ${main === 1 ? 'item' : 'items'}<br>Fine-tune: ${n % k}`;
+  return `Main input: <span style="color: var(--ink);">${formatStacks(main)} ${main === 1 ? 'item' : 'items'}</span><br>Fine-tune: <span style="color: var(--ink);">${n % k}</span>`;
 }
 
 function chargeSplit(n, prof){
