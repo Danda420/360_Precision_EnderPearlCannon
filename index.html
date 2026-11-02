@@ -747,13 +747,13 @@ function solve(){
 const AXIS_NAME = {N:'North', E:'East', S:'South', W:'West'};
 
 function yFmt(y, approx){
-  return (approx ? '~' : '') + y.toFixed(2);
+  return (approx ? '~' : '') + y.toFixed(3);
 }
 
 function fmtLanding(l, approx){
   return l.y === undefined
     ? `${l.x.toFixed(0)}, ${l.z.toFixed(0)}`
-    : `${l.x.toFixed(2)}, ${yFmt(l.y, approx)}, ${l.z.toFixed(2)}`;
+    : `${l.x.toFixed(3)}, ${yFmt(l.y, approx)}, ${l.z.toFixed(3)}`;
 }
 
 function stopperText(n, approx){
@@ -777,8 +777,8 @@ function rankHTML(ranked, axisA, axisB, convertNether, midair, approx, prof){
   if (!ranked || !ranked.length) return '';
   const rows = ranked.map((c, i) => `<tr${i === 0 ? ' class="top"' : ''}>
         <td>${i + 1}</td><td>${c.nA}${axisA}${chargeSplit(c.nA, prof)} + ${c.nB}${axisB}${chargeSplit(c.nB, prof)}</td><td>${c.nA + c.nB}</td>
-        <td>${c.x.toFixed(2)}</td><td>${yFmt(c.y, approx)}</td><td>${c.z.toFixed(2)}</td>
-        <td>${c.err.toFixed(2)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next, approx)}</td>` : ''}</tr>`).join('');
+        <td>${c.x.toFixed(3)}</td><td>${yFmt(c.y, approx)}</td><td>${c.z.toFixed(3)}</td>
+        <td>${c.err.toFixed(3)}</td><td>${c.ticks}</td>${midair && c.next ? `<td>${stopperText(c.next, approx)}</td>` : ''}</tr>`).join('');
   let note = convertNether ? ' &middot; X/Z in Nether coords, offset in overworld blocks' : '';
   if (prof && prof.chargesPerItem > 1) note += ' &middot; charges as n (main items + fine-tune)';
   return `<details class="rank" open>
@@ -823,7 +823,7 @@ function renderResults(r, convertNether){
         ${conversionHTML}
         Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing, r.yApprox)}</b>
         ${owHTML}
-        ${r.midairTP && r.stopper ? `<br>Stopper block${convertNether ? ' (Nether)' : ''}: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
+        ${r.midairTP && r.stopper ? `<br>Stopper block${convertNether ? ' (Nether)' : ''}: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(3)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(3)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
@@ -944,7 +944,7 @@ function renderReturnResults(r){
       </div>
       <div class="landing-details">
         Predicted landing: <b style="color: var(--ink);">${fmtLanding(r.landing, r.yApprox)}</b>
-        ${r.midairTP && r.stopper ? `<br>Stopper block: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(2)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(2)}</span>` : ''}
+        ${r.midairTP && r.stopper ? `<br>Stopper block: <b style="color: var(--ink);">${stopperText(r.stopper, r.yApprox)}</b><br><span class="error-text">Pearl's position on the next tick: ${r.stopper.x.toFixed(3)}, ${yFmt(r.stopper.y, r.yApprox)}, ${r.stopper.z.toFixed(3)}</span>` : ''}
         <br>
         <span class="error-text">Offset from target: <b>~${r.err.toFixed(0)} blocks</b></span>
         <br>
