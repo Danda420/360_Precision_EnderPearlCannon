@@ -790,6 +790,22 @@ function rankHTML(ranked, axisA, axisB, convertNether, midair, approx, prof){
     </details>`;
 }
 
+// Footer notes per cannon
+function footerHTML(physics){
+  const notes = physics ? [
+    `&#9432; If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level you will be standing on after landing).`,
+    `&#9432; The pearl is simulated tick by tick. You land at its last full-tick position before its next move would reach the Target Y level, so every nearby charge combination is simulated and the closest ones are ranked.`
+  ] : [
+    `&#9432; Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.`,
+    `&#9432; If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.`
+  ];
+  return `<footer class=" text-sm p-6 mt-8 footer-container">
+    <div class="flex flex-col space-y-1">
+${notes.map(n => `        <a style="color: var(--ink-dim);">${n}</a>`).join('\n')}
+    </div>
+  </footer>`;
+}
+
 function renderResults(r, convertNether){
   const resContainer = document.getElementById('results');
   resContainer.classList.remove('hidden');
@@ -833,14 +849,7 @@ function renderResults(r, convertNether){
       ${rankHTML(r.ranked, r.axisA, r.axisB, convertNether, r.midairTP, r.yApprox, r.prof)}
     </div>
 
-    <footer class=" text-sm p-6 mt-8 footer-container">
-    <div class="flex flex-col space-y-1">
-	<a style="color: var(--ink-dim);">&#9432; (III &amp; III-Lite) If you built this in the overworld, use the Floor Y in the cannon origin (cannon UI Floor block Y level) and Target Y in the target coordinate (the Y level you will be standing on after landing).</a>
-		<a style="color: var(--ink-dim);">&#9432; (III &amp; III-Lite) The pearl is simulated tick by tick. You land at its last full-tick position before its next move would reach the Target Y level, so every nearby charge combination is simulated and the closest ones are ranked.</a>
-        <a style="color: var(--ink-dim);">&#9432; (I &amp; II) Actual landing may offset by 1-10 blocks from the predictions, but it'll always land there with the same configuration.</a>
-        <a style="color: var(--ink-dim);">&#9432; (I &amp; II) If you built this in the overworld, it might not be as accurate as the predictions in destinations under 9k blocks from the cannon because of the terrain. But again, it'll land in the same block with the same configuration.</a>
-    </div>
-  </footer>
+    ${footerHTML(r.prof)}
   `;
 }
 
@@ -953,6 +962,8 @@ function renderReturnResults(r){
       </div>
       ${rankHTML(r.ranked, r.cfg.axisA, r.cfg.axisB, false, r.midairTP, r.yApprox)}
     </div>
+
+    ${footerHTML(true)}
   `;
 }
 
